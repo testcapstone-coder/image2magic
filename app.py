@@ -901,7 +901,7 @@ def main():
         """
         <section class="hero">
             <h1>One picture.<br><span class="hero-gradient">A whole new story.</span></h1>
-            <p>Upload an image and watch it become a warm, playful adventure you can read and hear.</p>
+            <p>Upload an image and watch it become a warm dventure you can read and hear.</p>
             <div class="flow-pills">
                 <span>1 · Upload</span>
                 <span>2 · Imagine</span>
@@ -1063,7 +1063,7 @@ def main():
                 )
 
     st.markdown(
-        '<div class="footer-note">Built with Hugging Face models · Designed for ages 3–10</div>',
+        '<div class="footer-note">P025 -  ISOM5240</div>',
         unsafe_allow_html=True,
     )
 
