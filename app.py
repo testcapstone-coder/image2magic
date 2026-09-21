@@ -1,6 +1,7 @@
 """ISOM5240: picture-to-story application with Kokoro narration."""
 import hashlib
 import io
+import re
 
 import numpy as np
 import soundfile as sf
@@ -11,7 +12,7 @@ from kokoro import KPipeline
 from transformers import pipeline
 
 CAPTION_MODEL = "Salesforce/blip-image-captioning-base"
-STORY_MODEL = "google/flan-t5-small"
+STORY_MODEL = "google/flan-t5-base"
 NARRATION_SPEED = 0.95
 VOICE_OPTIONS = {
     "🧚 Bella — Warm American": "af_bella",
@@ -50,24 +51,48 @@ def generate_caption(image: Image.Image) -> str:
     return caption
 
 
+def story_issue(story: str) -> str:
+    """Check basic output quality; this is not a semantic or safety evaluator."""
+    words = story.split()
+    if not 50 <= len(words) <= 100:
+        return f"Use 50–100 words; the previous attempt had {len(words)}."
+    if not story.rstrip().endswith((".", "!", "?", '"', "”")):
+        return "Finish with a complete sentence and a happy ending."
+    tokens = re.findall(r"\b\w+\b", story.lower())
+    phrases = [tuple(tokens[i:i + 4]) for i in range(len(tokens) - 3)]
+    if len(phrases) - len(set(phrases)) > 2:
+        return "Avoid repeating phrases; make each sentence advance the adventure."
+    return ""
+
+
 def generate_story(caption: str) -> str:
-    """Ask FLAN-T5 for a short story, retrying if its length is outside the target."""
+    """Generate a structured story and retry with concrete quality feedback."""
     prompt = (
-        "Write a complete, cheerful story of 50 to 100 words for children aged 3 to 10. "
-        "Use simple words, a beginning, a small adventure, and a happy ending. "
-        "Avoid scary or inappropriate content. Return only the story. "
-        f"The story should be inspired by this picture: {caption}"
+        "Write a cheerful children's story inspired by the picture description below. "
+        "Aim for 75 words, between 50 and 100 words total. Use simple English for ages 3–10. "
+        "Give the main character a name and a small goal. Describe a playful problem, "
+        "then show how the character solves it with kindness or curiosity. "
+        "End happily. Keep the main subject and setting from the picture. "
+        "Invent events, not a list of things in the picture. "
+        "No danger, violence, scary events, title, instructions, or moral label. "
+        "Return only one paragraph of story text.\n"
+        f"Picture description: {caption}\nStory:"
     )
     model = load_story_model()
+    feedback = ""
     for _ in range(3):
+        request = prompt if not feedback else prompt + "\nTry again: " + feedback
         story = model(
-            prompt, max_new_tokens=180, min_new_tokens=65,
-            do_sample=True, temperature=0.8, top_p=0.9,
-            repetition_penalty=1.15,
+            request, max_new_tokens=220,
+            do_sample=True, temperature=0.7, top_p=0.9, top_k=50,
+            repetition_penalty=1.1, no_repeat_ngram_size=4,
         )[0]["generated_text"].strip()
-        if 50 <= len(story.split()) <= 100:
+        feedback = story_issue(story)
+        if not feedback:
             return story
-    raise RuntimeError("The story model could not produce 50–100 words. Please try again.")
+    raise RuntimeError(
+        "The story model could not produce a complete 50–100 word story. Please try again."
+    )
 
 
 def generate_audio(story: str, voice: str = "af_bella") -> bytes:
@@ -117,10 +142,11 @@ def main():
             try:
                 with Image.open(io.BytesIO(uploaded.getvalue())) as original:
                     image = ImageOps.exif_transpose(original).convert("RGB")
-                st.image(image, width="stretch")
             except (OSError, ValueError, Image.DecompressionBombError):
                 st.error("This picture could not be opened. Please upload another JPG or PNG.")
         create_clicked = st.button("✨ Create My Story", type="primary", disabled=image is None)
+        if image is not None:
+            st.image(image, width="stretch")
 
     with right:
         selected_name = st.selectbox("🎙 Choose your storyteller", list(VOICE_OPTIONS))
