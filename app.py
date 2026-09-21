@@ -24,10 +24,10 @@ FLORENCE_TASK = "<MORE_DETAILED_CAPTION>"
 STORY_MODEL = "HuggingFaceTB/SmolLM2-360M-Instruct"
 NARRATION_SPEED = 0.95
 VOICE_OPTIONS = {
+    "🧙 Michael — American Male": "am_michael",
     "🧚 Bella — Warm American": "af_bella",
     "💖 Heart — Friendly American": "af_heart",
     "🇬🇧 Emma — British": "bf_emma",
-    "🧙 Michael — American Male": "am_michael",
 }
 LOGGER = logging.getLogger(__name__)
 SYSTEM_PROMPT = (
@@ -256,11 +256,29 @@ def main():
     st.set_page_config(page_title="Magic Story Maker", page_icon="📚", layout="wide")
     st.title("📚 Magic Story Maker")
     st.write("Turn your picture into a little adventure you can read and listen to!")
-    left, right = st.columns([1, 1.3], gap="large")
+    st.markdown(
+        """<style>
+        .st-key-picture_controls, .st-key-story_controls,
+        .st-key-picture_panel, .st-key-story_panel {
+            padding: 1rem;
+            border: 1px solid transparent;
+            border-radius: 1rem;
+        }
+        .st-key-story_controls, .st-key-story_panel {
+            background-color: rgba(139, 92, 246, 0.12);
+            border-color: rgba(139, 92, 246, 0.28);
+        }
+        </style>""",
+        unsafe_allow_html=True,
+    )
+    # Shared rows keep the two sides aligned, regardless of uploader height.
+    upload_column, voice_column = st.columns([1, 1.3], gap="large")
     image = None
-    with left:
-        st.subheader("🖼 Your Picture")
-        uploaded = st.file_uploader("Upload a picture", type=["jpg", "jpeg", "png"])
+    with upload_column, st.container(key="picture_controls"):
+        st.subheader("🖼 Upload Your Picture")
+        uploaded = st.file_uploader(
+            "Upload your picture", type=["jpg", "jpeg", "png"], label_visibility="collapsed",
+        )
         image_id = hashlib.sha256(uploaded.getvalue()).hexdigest() if uploaded else None
         if st.session_state.get("image_id") != image_id:
             st.session_state["image_id"] = image_id
@@ -272,13 +290,23 @@ def main():
             except (OSError, ValueError, Image.DecompressionBombError):
                 st.error("This picture could not be opened. Please upload another JPG or PNG.")
         create_clicked = st.button("✨ Create My Story", type="primary", disabled=image is None)
+
+    with voice_column, st.container(key="story_controls"):
+        st.subheader("🎙 Choose Your Storyteller")
+        selected_name = st.selectbox(
+            "Choose your storyteller", list(VOICE_OPTIONS), label_visibility="collapsed",
+        )
+        selected_voice = VOICE_OPTIONS[selected_name]
+
+    picture_column, story_column = st.columns([1, 1.3], gap="large")
+    with picture_column, st.container(key="picture_panel"):
         if image is not None:
             st.image(image, width="stretch")
+        else:
+            st.info("Your picture will appear here.")
 
-    with right:
-        selected_name = st.selectbox("🎙 Choose your storyteller", list(VOICE_OPTIONS))
+    with story_column, st.container(key="story_panel"):
         st.subheader("✨ Your Story")
-        selected_voice = VOICE_OPTIONS[selected_name]
         if create_clicked and image is not None:
             st.session_state.pop("result", None)
             progress = st.progress(0, text="1. Analyzing image")
