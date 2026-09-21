@@ -1,29 +1,17 @@
+"""ISOM5240: picture-to-story application with Kokoro narration."""
+import hashlib
 import io
-import re
 
 import numpy as np
 import soundfile as sf
 import streamlit as st
+from PIL import Image, ImageOps
 from kokoro import KPipeline
-from PIL import Image
 from transformers import pipeline
-
-
-# -------------------------------------------------------------------
-# Application configuration
-# -------------------------------------------------------------------
-st.set_page_config(
-    page_title="Magic Story Maker",
-    page_icon="📚",
-    layout="wide",
-)
 
 CAPTION_MODEL = "Salesforce/blip-image-captioning-base"
 STORY_MODEL = "google/flan-t5-small"
-
-MIN_STORY_WORDS = 50
-MAX_STORY_WORDS = 100
-
+NARRATION_SPEED = 0.95
 VOICE_OPTIONS = {
     "🧚 Bella — Warm American": "af_bella",
     "💖 Heart — Friendly American": "af_heart",
@@ -32,430 +20,132 @@ VOICE_OPTIONS = {
 }
 
 
-# -------------------------------------------------------------------
-# Model loading
-# -------------------------------------------------------------------
 @st.cache_resource(show_spinner=False)
 def load_caption_model():
-    """Load and cache the Hugging Face image-captioning pipeline."""
-    return pipeline(
-        task="image-to-text",
-        model=CAPTION_MODEL,
-        device=-1,  # CPU, suitable for Streamlit Cloud
-    )
+    return pipeline("image-to-text", model=CAPTION_MODEL, device=-1)
 
 
 @st.cache_resource(show_spinner=False)
 def load_story_model():
-    """Load and cache the Hugging Face story-generation pipeline."""
-    return pipeline(
-        task="text2text-generation",
-        model=STORY_MODEL,
-        device=-1,  # CPU, suitable for Streamlit Cloud
-    )
+    return pipeline("text2text-generation", model=STORY_MODEL, device=-1)
 
 
 @st.cache_resource(show_spinner=False)
-def load_tts_model():
-    """Load and cache the Kokoro text-to-speech pipeline."""
-    return KPipeline(lang_code="a")  # American English phonemization
+def load_tts_model(lang_code: str):
+    # Match British voices with British pronunciation, American voices with American.
+    return KPipeline(lang_code=lang_code, repo_id="hexgrad/Kokoro-82M")
 
 
-# -------------------------------------------------------------------
-# Core application functions
-# -------------------------------------------------------------------
 def generate_caption(image: Image.Image) -> str:
-    """
-    Generate a short description of the uploaded image.
-
-    Args:
-        image: PIL image uploaded by the user.
-
-    Returns:
-        A text caption describing the image.
-    """
-    captioner = load_caption_model()
-    image = image.convert("RGB")
-
-    result = captioner(
-        image,
-        max_new_tokens=50,
-    )
-
-    if not result:
-        raise RuntimeError("The image-captioning model returned no result.")
-
-    return result[0]["generated_text"].strip()
-
-
-def clean_text(text: str) -> str:
-    """Normalize spacing and remove unnecessary wrapping quotation marks."""
-    text = re.sub(r"\s+", " ", text).strip()
-
-    if len(text) >= 2 and text[0] == '"' and text[-1] == '"':
-        text = text[1:-1].strip()
-
-    return text
-
-
-def count_words(text: str) -> int:
-    """Return the number of words in a string."""
-    return len(text.split())
-
-
-def build_story_prompt(caption: str) -> str:
-    """Create the prompt used by the Hugging Face story-generation model."""
-    return f"""
-Write one complete children's story inspired by this image description:
-
-"{caption}"
-
-Requirements:
-- The audience is children aged 3 to 10.
-- Write between 60 and 85 words.
-- Use simple, warm, easy-to-understand English.
-- Give the story a clear beginning, middle, and happy ending.
-- Keep the story playful, positive, gentle, and age-appropriate.
-- Avoid violence, frightening details, unsafe behavior, adult themes, or inappropriate language.
-- Do not mention these instructions.
-- Return only the story.
-
-Story:
-""".strip()
-
-
-def rewrite_story_to_length(story: str, caption: str) -> str:
-    """Rewrite a draft if it falls outside the required 50-100 word range."""
-    story_generator = load_story_model()
-
-    prompt = f"""
-Rewrite the children's story below so that it is between 60 and 85 words.
-
-Image description:
-"{caption}"
-
-Draft story:
-"{story}"
-
-Keep it suitable for children aged 3 to 10.
-Use simple English, a positive tone, and a happy ending.
-Return only the rewritten story.
-""".strip()
-
-    result = story_generator(
-        prompt,
-        max_new_tokens=180,
-        do_sample=True,
-        temperature=0.8,
-        top_p=0.95,
-        repetition_penalty=1.08,
-    )
-
-    if not result:
-        raise RuntimeError("The story-generation model returned no rewrite.")
-
-    return clean_text(result[0]["generated_text"])
-
-
-def shorten_to_word_limit(story: str, max_words: int = 100) -> str:
-    """Shorten a story while trying to end on a complete sentence."""
-    words = story.split()
-
-    if len(words) <= max_words:
-        return story
-
-    shortened = " ".join(words[:max_words])
-
-    last_ending = max(
-        shortened.rfind("."),
-        shortened.rfind("!"),
-        shortened.rfind("?"),
-    )
-
-    if last_ending >= 40:
-        shortened = shortened[: last_ending + 1]
-    else:
-        shortened = shortened.rstrip(" ,;:-") + "."
-
-    return shortened
+    caption = load_caption_model()(image, max_new_tokens=60)[0]["generated_text"].strip()
+    if not caption:
+        raise RuntimeError("The image model returned an empty description.")
+    return caption
 
 
 def generate_story(caption: str) -> str:
-    """Expand the image caption into a 50-100 word children's story."""
-    story_generator = load_story_model()
-    prompt = build_story_prompt(caption)
-
-    result = story_generator(
-        prompt,
-        max_new_tokens=180,
-        do_sample=True,
-        temperature=0.85,
-        top_p=0.95,
-        repetition_penalty=1.08,
+    """Ask FLAN-T5 for a short story, retrying if its length is outside the target."""
+    prompt = (
+        "Write a complete, cheerful story of 50 to 100 words for children aged 3 to 10. "
+        "Use simple words, a beginning, a small adventure, and a happy ending. "
+        "Avoid scary or inappropriate content. Return only the story. "
+        f"The story should be inspired by this picture: {caption}"
     )
-
-    if not result:
-        raise RuntimeError("The story-generation model returned no result.")
-
-    story = clean_text(result[0]["generated_text"])
-
-    # Give the model up to two extra attempts to satisfy the required length.
-    for _ in range(2):
-        word_count = count_words(story)
-
-        if MIN_STORY_WORDS <= word_count <= MAX_STORY_WORDS:
-            break
-
-        story = rewrite_story_to_length(story, caption)
-
-    if count_words(story) > MAX_STORY_WORDS:
-        story = shorten_to_word_limit(story, MAX_STORY_WORDS)
-
-    return clean_text(story)
+    model = load_story_model()
+    for _ in range(3):
+        story = model(
+            prompt, max_new_tokens=180, min_new_tokens=65,
+            do_sample=True, temperature=0.8, top_p=0.9,
+            repetition_penalty=1.15,
+        )[0]["generated_text"].strip()
+        if 50 <= len(story.split()) <= 100:
+            return story
+    raise RuntimeError("The story model could not produce 50–100 words. Please try again.")
 
 
-def generate_audio(
-    story: str,
-    voice: str = "af_bella",
-    speed: float = 0.95,
-) -> io.BytesIO:
-    """
-    Convert the generated story into natural speech using Kokoro-82M.
-
-    Args:
-        story: Story text to narrate.
-        voice: Kokoro voice ID.
-        speed: Narration speed.
-
-    Returns:
-        WAV audio stored in memory.
-    """
-    tts_pipeline = load_tts_model()
-
-    generator = tts_pipeline(
-        story,
-        voice=voice,
-        speed=speed,
-    )
-
-    audio_chunks = []
-
-    for _, _, audio in generator:
-        audio_chunks.append(np.asarray(audio))
-
-    if not audio_chunks:
-        raise RuntimeError("The text-to-speech model returned no audio.")
-
-    combined_audio = np.concatenate(audio_chunks)
-
-    audio_buffer = io.BytesIO()
-
-    sf.write(
-        audio_buffer,
-        combined_audio,
-        24000,
-        format="WAV",
-    )
-
-    audio_buffer.seek(0)
-    return audio_buffer
+def generate_audio(story: str, voice: str = "af_bella") -> bytes:
+    """Generate a 24 kHz WAV at the fixed internal narration speed."""
+    tts = load_tts_model("b" if voice.startswith("b") else "a")
+    chunks = []
+    for _, _, audio in tts(story, voice=voice, speed=NARRATION_SPEED):
+        if audio is not None:
+            if hasattr(audio, "detach"):
+                audio = audio.detach().cpu().numpy()
+            chunk = np.asarray(audio, dtype=np.float32).reshape(-1)
+            if chunk.size:
+                chunks.append(chunk)
+    if not chunks:
+        raise RuntimeError("The narrator did not produce audio. Please try again.")
+    buffer = io.BytesIO()
+    sf.write(buffer, np.concatenate(chunks), 24000, format="WAV")
+    return buffer.getvalue()
 
 
-def reset_story_state():
-    """Clear previous generated results when the uploaded image changes."""
-    for key in ("caption", "story", "audio"):
-        st.session_state.pop(key, None)
+def create_story(image: Image.Image, voice: str, progress) -> dict:
+    """Advance progress only when the preceding stage has finished."""
+    progress.progress(0, text="1 of 3 · Looking at your picture…")
+    caption = generate_caption(image)
+    progress.progress(33, text="2 of 3 · Writing your story…")
+    story = generate_story(caption)
+    progress.progress(66, text="3 of 3 · Recording your story…")
+    audio = generate_audio(story, voice)
+    progress.progress(100, text="100% · Your story and narration are ready!")
+    return {"caption": caption, "story": story, "audio": audio, "voice": voice}
 
 
-# -------------------------------------------------------------------
-# Streamlit user interface
-# -------------------------------------------------------------------
 def main():
-    """Run the Streamlit storytelling application."""
-
-    st.markdown(
-        """
-        <style>
-        .block-container {
-            max-width: 1250px;
-            padding-top: 1.5rem;
-            padding-bottom: 3rem;
-        }
-
-        .hero {
-            text-align: center;
-            padding: 0.6rem 1rem 1.3rem 1rem;
-        }
-
-        .hero h1 {
-            margin-bottom: 0.3rem;
-        }
-
-        .panel-title {
-            font-size: 1.25rem;
-            font-weight: 700;
-            margin-bottom: 0.6rem;
-        }
-
-        .small-note {
-            opacity: 0.75;
-            font-size: 0.9rem;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        """
-        <div class="hero">
-            <h1>📚 Magic Story Maker</h1>
-            <p>Upload a picture and turn it into a short, friendly story with natural audio. ✨</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    uploaded_file = st.file_uploader(
-        "Choose a picture",
-        type=["jpg", "jpeg", "png"],
-        help="Upload a JPG, JPEG, or PNG image.",
-        on_change=reset_story_state,
-    )
-
-    if uploaded_file is None:
-        st.info("👆 Upload an image to begin.")
-        return
-
-    try:
-        image = Image.open(uploaded_file)
-    except Exception:
-        st.error(
-            "I could not read that image. "
-            "Please upload a valid JPG, JPEG, or PNG file."
-        )
-        return
-
-    # ---------------------------------------------------------------
-    # Two-column application layout:
-    # Image on the left, generated content on the right.
-    # ---------------------------------------------------------------
-    image_column, story_column = st.columns(
-        [1, 1],
-        gap="large",
-        vertical_alignment="top",
-    )
-
-    with image_column:
-        st.markdown('<div class="panel-title">🖼 Your Picture</div>', unsafe_allow_html=True)
-
-        st.image(
-            image,
-            use_container_width=True,
-        )
-
-        selected_voice_name = st.selectbox(
-            "🎙 Choose your storyteller",
-            options=list(VOICE_OPTIONS.keys()),
-            index=0,
-        )
-
-        selected_voice = VOICE_OPTIONS[selected_voice_name]
-
-        narration_speed = st.slider(
-            "Narration speed",
-            min_value=0.80,
-            max_value=1.10,
-            value=0.95,
-            step=0.05,
-            help="A slightly slower speed is easier for younger children to follow.",
-        )
-
-        create_story = st.button(
-            "✨ Create My Story",
-            type="primary",
-            use_container_width=True,
-        )
-
-    with story_column:
-        st.markdown('<div class="panel-title">✨ Your Story</div>', unsafe_allow_html=True)
-
-        if create_story:
+    st.set_page_config(page_title="Magic Story Maker", page_icon="📚", layout="wide")
+    st.title("📚 Magic Story Maker")
+    st.write("Turn your picture into a little adventure you can read and listen to!")
+    left, right = st.columns([1, 1.3], gap="large")
+    image = None
+    with left:
+        st.subheader("🖼 Your Picture")
+        uploaded = st.file_uploader("Upload a picture", type=["jpg", "jpeg", "png"])
+        image_id = hashlib.sha256(uploaded.getvalue()).hexdigest() if uploaded else None
+        if st.session_state.get("image_id") != image_id:
+            st.session_state["image_id"] = image_id
+            st.session_state.pop("result", None)
+        if uploaded is not None:
             try:
-                with st.spinner("🔎 Looking at your picture..."):
-                    caption = generate_caption(image)
+                with Image.open(io.BytesIO(uploaded.getvalue())) as original:
+                    image = ImageOps.exif_transpose(original).convert("RGB")
+                st.image(image, use_container_width=True)
+            except (OSError, ValueError, Image.DecompressionBombError):
+                st.error("This picture could not be opened. Please upload another JPG or PNG.")
+        create_clicked = st.button("✨ Create My Story", type="primary", disabled=image is None)
 
-                with st.spinner("✍️ Writing your story..."):
-                    story = generate_story(caption)
-
-                with st.spinner("🔊 Creating the narration..."):
-                    audio = generate_audio(
-                        story,
-                        voice=selected_voice,
-                        speed=narration_speed,
-                    )
-
-                st.session_state.caption = caption
-                st.session_state.story = story
-                st.session_state.audio = audio.getvalue()
-
-            except Exception as error:
-                st.error(
-                    "Something went wrong while creating the story. "
-                    "Please try again."
-                )
-                st.caption(f"Technical detail: {error}")
-
-        if "story" not in st.session_state:
-            with st.container(border=True):
-                st.markdown("### 🌟 Your story will appear here")
-                st.write(
-                    "Choose a storyteller on the left, then click "
-                    "**Create My Story**."
-                )
+    with right:
+        selected_name = st.selectbox("🎙 Choose your storyteller", list(VOICE_OPTIONS))
+        st.subheader("✨ Your Story")
+        selected_voice = VOICE_OPTIONS[selected_name]
+        if create_clicked and image is not None:
+            st.session_state.pop("result", None)
+            progress = st.progress(0, text="Getting ready…")
+            try:
+                with st.spinner("Creating your story… The first run may take longer while models load."):
+                    st.session_state["result"] = create_story(image, selected_voice, progress)
+            except Exception as exc:
+                progress.empty()
+                st.error("We couldn't finish your story. Please try again.")
+                with st.expander("Technical details"):
+                    st.text(str(exc))
+        result = st.session_state.get("result")
+        if result:
+            st.write(result["story"])
+            st.caption(f"{len(result['story'].split())} words")
+            with st.expander("What was in your picture?"):
+                st.write(result["caption"])
+            st.subheader("🔊 Listen to your story")
+            narrator = next(name for name, voice in VOICE_OPTIONS.items() if voice == result["voice"])
+            st.caption(f"Narrated by {narrator}")
+            if selected_voice != result["voice"]:
+                st.info("Click Create My Story to make a new story with your chosen storyteller.")
+            st.audio(result["audio"], format="audio/wav")
+            st.download_button("⬇ Download narration", result["audio"], "my-story.wav", "audio/wav")
+            st.download_button("⬇ Download story", result["story"], "my-story.txt", "text/plain")
         else:
-            with st.expander("🔎 What the AI saw in the picture"):
-                st.write(st.session_state.caption)
-
-            with st.container(border=True):
-                st.write(st.session_state.story)
-
-            word_count = count_words(st.session_state.story)
-
-            if MIN_STORY_WORDS <= word_count <= MAX_STORY_WORDS:
-                st.caption(f"✅ Story length: {word_count} words")
-            else:
-                st.caption(
-                    f"⚠️ Story length: {word_count} words "
-                    f"(target: {MIN_STORY_WORDS}-{MAX_STORY_WORDS})"
-                )
-
-            st.markdown("#### 🔊 Listen to Your Story")
-
-            st.audio(
-                st.session_state.audio,
-                format="audio/wav",
-            )
-
-            st.download_button(
-                label="💾 Save the story as a text file",
-                data=st.session_state.story,
-                file_name="my_magic_story.txt",
-                mime="text/plain",
-                use_container_width=True,
-            )
-
-    st.divider()
-
-    st.markdown(
-        """
-        <p class="small-note">
-        The app uses Hugging Face models for image captioning and story generation,
-        followed by Kokoro text-to-speech for natural narration.
-        </p>
-        """,
-        unsafe_allow_html=True,
-    )
+            st.info("Choose a picture and a storyteller, then click Create My Story.")
 
 
 if __name__ == "__main__":
