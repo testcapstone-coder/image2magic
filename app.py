@@ -21,12 +21,8 @@ from transformers import AutoModelForCausalLM, AutoProcessor, pipeline
 
 # Model configuration
 CAPTION_MODEL = "microsoft/Florence-2-base"  # Image -> detailed image description
-# Pin the custom modeling/processor code and weights to the reviewed repository revision.
-FLORENCE_REVISION = "5ca5edf5bd017b9919c05d08aebef5e4c7ac3bac"
-FLORENCE_TASK = "<MORE_DETAILED_CAPTION>"
 STORY_MODEL = "HuggingFaceTB/SmolLM2-360M-Instruct"  # Image description -> children's story
 AUDIO_MODEL = "hexgrad/Kokoro-82M"  # Generated story -> spoken narration
-TEXT_PROCESSING_MODEL = "en_core_web_sm"  # English text processing used by the narration pipeline
 
 # Application configuration
 MIN_STORY_WORDS = 50
@@ -87,11 +83,14 @@ def run_stage(function, *args):
 
 def load_florence_model():
     """Load Microsoft's custom Florence implementation on CPU without FlashAttention."""
+    # Florence-specific revision used to pin the reviewed processor/model code and weights.
+    model_revision = "5ca5edf5bd017b9919c05d08aebef5e4c7ac3bac"
+
     processor = AutoProcessor.from_pretrained(
-        CAPTION_MODEL, revision=FLORENCE_REVISION, trust_remote_code=True,
+        CAPTION_MODEL, revision=model_revision, trust_remote_code=True,
     )
     model = AutoModelForCausalLM.from_pretrained(
-        CAPTION_MODEL, revision=FLORENCE_REVISION, trust_remote_code=True,
+        CAPTION_MODEL, revision=model_revision, trust_remote_code=True,
         torch_dtype=torch.float32, attn_implementation="eager",
     ).to("cpu").eval()
     return processor, model
@@ -99,8 +98,11 @@ def load_florence_model():
 
 def generate_image_description(image: Image.Image) -> str:
     """Request descriptive captioning only; never add creative story instructions."""
+    # Florence-specific task token requesting a more detailed image caption.
+    caption_task = "<MORE_DETAILED_CAPTION>"
+
     processor, model = load_florence_model()
-    inputs = processor(text=FLORENCE_TASK, images=image.convert("RGB"), return_tensors="pt")
+    inputs = processor(text=caption_task, images=image.convert("RGB"), return_tensors="pt")
     with torch.inference_mode():
         ids = model.generate(
             input_ids=inputs["input_ids"].to("cpu"),
@@ -109,9 +111,9 @@ def generate_image_description(image: Image.Image) -> str:
         )
     raw_text = processor.batch_decode(ids, skip_special_tokens=False)[0]
     parsed = processor.post_process_generation(
-        raw_text, task=FLORENCE_TASK, image_size=(image.width, image.height),
+        raw_text, task=caption_task, image_size=(image.width, image.height),
     )
-    description = parsed.get(FLORENCE_TASK)
+    description = parsed.get(caption_task)
     if not isinstance(description, str) or not description.strip():
         raise RuntimeError("Florence did not return a detailed image description. Please try another picture.")
     return description.strip()
@@ -223,9 +225,12 @@ def load_kokoro_model():
 
 
 def load_tts_model(lang_code: str):
-    if not spacy.util.is_package(TEXT_PROCESSING_MODEL):
+    # Kokoro uses spaCy's small English pipeline to process narration text.
+    text_processing_model = "en_core_web_sm"
+
+    if not spacy.util.is_package(text_processing_model):
         raise RuntimeError(
-            f"Missing {TEXT_PROCESSING_MODEL}. Deploy the supplied requirements.txt so it is "
+            f"Missing {text_processing_model}. Deploy the supplied requirements.txt so it is "
             "installed at build time; runtime package installation is not supported."
         )
     return KPipeline(
