@@ -66,7 +66,7 @@ def story_issue(story: str) -> str:
 
 
 def generate_story(caption: str) -> str:
-    """Generate a structured story and retry with concrete quality feedback."""
+    """Revise drafts toward the target; preserve a usable draft if checks fail."""
     prompt = (
         "Write a cheerful children's story inspired by the picture description below. "
         "Aim for 75 words, between 50 and 100 words total. Use simple English for ages 3–10. "
@@ -80,19 +80,38 @@ def generate_story(caption: str) -> str:
     )
     model = load_story_model()
     feedback = ""
+    candidates = []
+    request = prompt
     for _ in range(3):
-        request = prompt if not feedback else prompt + "\nTry again: " + feedback
         story = model(
             request, max_new_tokens=220,
             do_sample=True, temperature=0.7, top_p=0.9, top_k=50,
             repetition_penalty=1.1, no_repeat_ngram_size=4,
         )[0]["generated_text"].strip()
+        if not story:
+            request = prompt
+            continue
+        candidates.append(story)
         feedback = story_issue(story)
         if not feedback:
             return story
-    raise RuntimeError(
-        "The story model could not produce a complete 50–100 word story. Please try again."
-    )
+        count = len(story.split())
+        action = "Expand" if count < 50 else "Shorten" if count > 100 else "Revise"
+        request = (
+            f"{action} this children's story into one complete paragraph of 50–100 words. "
+            "Aim for 75 words. Keep the same characters and setting, use simple English, "
+            "and finish happily. Add concrete events when expanding. "
+            "Return only the rewritten story.\n"
+            f"Picture: {caption}\nDraft: {story}\nCorrection: {feedback}\nRewritten story:"
+        )
+    if not candidates:
+        raise RuntimeError("The story model returned no text. Please try again.")
+    # Prefer the draft closest to the assignment length. Never silently pad or cut it.
+    return min(candidates, key=lambda draft: (
+        max(50 - len(draft.split()), len(draft.split()) - 100, 0),
+        bool(story_issue(draft)),
+        abs(len(draft.split()) - 75),
+    ))
 
 
 def generate_audio(story: str, voice: str = "af_bella") -> bytes:
@@ -167,6 +186,12 @@ def main():
         if result:
             st.write(result["story"])
             st.caption(f"{len(result['story'].split())} words")
+            issue = story_issue(result["story"])
+            if issue:
+                st.warning(
+                    "This is the best of three drafts, but it still needs revision. "
+                    + issue + " You can create another story."
+                )
             with st.expander("What was in your picture?"):
                 st.write(result["caption"])
             st.subheader("🔊 Listen to your story")
