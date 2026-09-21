@@ -1,7 +1,7 @@
-"""ISOM5240: Florence image description → SmolLM2 story → Kokoro narration."""
 # Magic Story Maker
 # Copyright (c) 2026 [Your Name]
 # Licensed under the GNU General Public License v3.0.
+"""ISOM5240: Florence image description → SmolLM2 story → Kokoro narration."""
 import base64
 import gc
 import ctypes
@@ -32,16 +32,19 @@ MIN_STORY_WORDS = 50
 MAX_STORY_WORDS = 100
 TARGET_STORY_WORDS = 65
 MAX_STORY_ATTEMPTS = 3
-NARRATION_SPEED = 0.95
+NARRATION_SPEED = 1.0
 AUDIO_SAMPLE_RATE = 24000
 DEFAULT_VOICE = "am_michael"
 ALLOWED_IMAGE_TYPES = ["jpg", "jpeg", "png"]
+MAX_UPLOAD_MB = 20
 
 VOICE_OPTIONS = {
     "🧚 Bella — Warm American": "af_bella",
+    "🎙️ Nicole — American Female": "af_nicole",
     "💖 Heart — Friendly American": "af_heart",
     "🇬🇧 Emma — British": "bf_emma",
     "🧙 Michael — American Male": "am_michael",
+    "🪄 Puck — American Male": "am_puck",
 }
 LOGGER = logging.getLogger(__name__)
 SYSTEM_PROMPT = (
@@ -510,6 +513,15 @@ def inject_apple_style():
             font-size: .78rem !important;
         }
 
+        /* Make only the selected file name smaller; keep the file size unchanged. */
+        [data-testid="stFileUploaderFileName"],
+        [data-testid="stFileUploaderFileName"] *,
+        [data-testid="stFileUploaderFileData"] > div:first-child,
+        [data-testid="stFileUploaderFileData"] > div:first-child * {
+            font-size: .54rem !important;
+            line-height: 1.05 !important;
+        }
+
         [data-baseweb="select"] > div {
             border-radius: 16px !important;
             border-color: rgba(255,255,255,.11) !important;
@@ -918,6 +930,9 @@ def main():
             uploaded = st.file_uploader(
                 "Upload a picture", type=ALLOWED_IMAGE_TYPES, label_visibility="collapsed"
             )
+            if uploaded is not None and len(uploaded.getvalue()) > MAX_UPLOAD_MB * 1024 * 1024:
+                st.error(f"Please upload an image smaller than {MAX_UPLOAD_MB} MB.")
+                uploaded = None
 
         with voice_col:
             st.markdown(
