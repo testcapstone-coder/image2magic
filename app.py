@@ -1,4 +1,7 @@
 """ISOM5240: Florence image description → SmolLM2 story → Kokoro narration."""
+import gc
+import ctypes
+import sys
 import hashlib
 import io
 import logging
@@ -46,7 +49,27 @@ def inference_lock():
     return RLock()
 
 
-@st.cache_resource(show_spinner=False)
+def run_stage(function, *args):
+    """Release unreferenced model objects between stages, including cyclic references."""
+    LOGGER.warning("Starting stage: %s", function.__name__)
+    try:
+        result = function(*args)
+        LOGGER.warning("Finished stage: %s", function.__name__)
+        return result
+    finally:
+        gc.collect()
+        # On Streamlit's Linux/glibc host, return free allocator pages to the OS.
+        # Other platforms/allocators may not expose malloc_trim.
+        if sys.platform == "linux":
+            try:
+                trim = ctypes.CDLL(None).malloc_trim
+                trim.argtypes = [ctypes.c_size_t]
+                trim.restype = ctypes.c_int
+                trim(0)
+            except (AttributeError, OSError):
+                pass
+
+
 def load_florence_model():
     """Load Microsoft's custom Florence implementation on CPU without FlashAttention."""
     processor = AutoProcessor.from_pretrained(
@@ -79,7 +102,6 @@ def generate_image_description(image: Image.Image) -> str:
     return description.strip()
 
 
-@st.cache_resource(show_spinner=False)
 def load_story_model():
     """Use SmolLM2's native chat template with Hugging Face text-generation."""
     return pipeline(
@@ -177,13 +199,11 @@ def generate_story(description: str) -> str:
     )
 
 
-@st.cache_resource(show_spinner=False)
 def load_kokoro_model():
-    """Share one set of Kokoro weights between American and British voices."""
+    """Load Kokoro only for the current narration, then release it."""
     return KModel(repo_id="hexgrad/Kokoro-82M").to("cpu").eval()
 
 
-@st.cache_resource(show_spinner=False)
 def load_tts_model(lang_code: str):
     if not spacy.util.is_package("en_core_web_sm"):
         raise RuntimeError(
@@ -267,15 +287,15 @@ def main():
             try:
                 with st.spinner("Creating your story… First-time model downloads may take a few minutes."):
                     with inference_lock():
-                        description = generate_image_description(image)
+                        description = run_stage(generate_image_description, image)
                         result = {"description": description, "voice": selected_voice}
                         st.session_state["result"] = result
                         progress.progress(33, text="2. Writing story")
-                        story = generate_story(description)
+                        story = run_stage(generate_story, description)
                         result["story"] = story
                         preview.write(story)
                         progress.progress(66, text="3. Creating narration")
-                        result["audio"] = generate_audio(story, selected_voice)
+                        result["audio"] = run_stage(generate_audio, story, selected_voice)
                         progress.progress(100, text="4. Complete")
             except Exception as exc:
                 LOGGER.exception("Story creation failed")
