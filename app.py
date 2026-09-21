@@ -1,5 +1,5 @@
 # Magic Story Maker
-# Copyright (c) 2026 [Your Name]
+# Copyright (c) 2026 - P025 - ISOM5240
 # Licensed under the GNU General Public License v3.0.
 """ISOM5240: Florence image description → SmolLM2 story → Kokoro narration."""
 import base64
