@@ -1,4 +1,7 @@
 """ISOM5240: Florence image description → SmolLM2 story → Kokoro narration."""
+# Magic Story Maker
+# Copyright (c) 2026 [Your Name]
+# Licensed under the GNU General Public License v3.0.
 import base64
 import gc
 import ctypes
