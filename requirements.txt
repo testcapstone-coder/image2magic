@@ -1,1 +1,6 @@
-
+streamlit>=1.40
+transformers>=4.45
+torch>=2.2
+Pillow>=10.0
+gTTS>=2.5
+sentencepiece>=0.2
