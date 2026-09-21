@@ -4,6 +4,7 @@ import io
 
 import numpy as np
 import soundfile as sf
+import spacy
 import streamlit as st
 from PIL import Image, ImageOps
 from kokoro import KPipeline
@@ -32,6 +33,12 @@ def load_story_model():
 
 @st.cache_resource(show_spinner=False)
 def load_tts_model(lang_code: str):
+    # Prevent Misaki from attempting a forbidden runtime package installation.
+    if not spacy.util.is_package("en_core_web_sm"):
+        raise RuntimeError(
+            "The English speech dependency en_core_web_sm is missing. "
+            "Deploy the updated requirements.txt and wait for installation to finish."
+        )
     # Match British voices with British pronunciation, American voices with American.
     return KPipeline(lang_code=lang_code, repo_id="hexgrad/Kokoro-82M")
 
@@ -110,7 +117,7 @@ def main():
             try:
                 with Image.open(io.BytesIO(uploaded.getvalue())) as original:
                     image = ImageOps.exif_transpose(original).convert("RGB")
-                st.image(image, use_container_width=True)
+                st.image(image, width="stretch")
             except (OSError, ValueError, Image.DecompressionBombError):
                 st.error("This picture could not be opened. Please upload another JPG or PNG.")
         create_clicked = st.button("✨ Create My Story", type="primary", disabled=image is None)
