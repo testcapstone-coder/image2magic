@@ -50,12 +50,12 @@ MAX_UPLOAD_MB = 20
 
 # Display label -> Kokoro voice identifier.
 VOICE_OPTIONS = {
-    "🧚 Bella — Warm American": "af_bella",
-    "🎙️ Nicole — American Female": "af_nicole",
-    "💖 Heart — Friendly American": "af_heart",
-    "🇬🇧 Emma — British": "bf_emma",
-    "🧙 Michael — American Male": "am_michael",
-    "🪄 Puck — American Male": "am_puck",
+    "🧚 Bella — Warm & gentle": "af_bella",
+    "🌷 Nicole — Bright & friendly": "af_nicole",
+    "💖 Heart — Cheerful": "af_heart",
+    "👑 Emma — British storyteller": "bf_emma",
+    "🧙 Michael — Calm & friendly": "am_michael",
+    "🪄 Puck — Playful": "am_puck",
 }
 
 LOGGER = logging.getLogger(__name__)
@@ -66,6 +66,7 @@ SYSTEM_PROMPT = (
     "Write a warm, playful story for children aged 3–10 in simple English. "
     f"Use five short sentences, about 12–16 words each, totaling {MIN_STORY_WORDS}–{MAX_STORY_WORDS} words. "
     "Give it a beginning, a small gentle adventure, and a happy ending. "
+    "Prefer familiar everyday words, clear actions, and an encouraging tone; avoid sarcasm, idioms, and complex vocabulary. "
     "Use the image's main subject as the narrator; preserve its setting, objects, colors, and scale. "
     "Objects and animals may talk. Do not add people absent from the image description. "
     "You may invent names and gentle events, but do not contradict the description. "
@@ -238,7 +239,7 @@ def generate_story(description: str) -> str:
     raise RuntimeError(
         f"The model could not finish a {MIN_STORY_WORDS}–{MAX_STORY_WORDS} word story "
         f"after {MAX_STORY_ATTEMPTS} attempts. Your image description is saved below. "
-        "Click Create My Story to try again."
+        "Click Make My Story! to try again."
     )
 
 
@@ -287,144 +288,178 @@ def generate_audio(story: str, voice: str = DEFAULT_VOICE) -> bytes:
     return buffer.getvalue()
 
 
-def inject_apple_style():
-    """Inject the complete responsive Streamlit theme without external CSS files."""
+def inject_kid_friendly_style(theme: str = "light"):
+    """Inject the child-friendly UI, using light mode by default with an optional dark palette."""
     st.markdown(
         """
         <style>
         :root {
-            --bg: #050507;
-            --surface: #111114;
-            --surface-2: #17171c;
-            --surface-3: #1d1d23;
-            --ink: #f5f5f7;
-            --muted: #a1a1a6;
-            --line: rgba(255,255,255,.10);
-            --purple: #a78bfa;
-            --blue: #64a8ff;
+            color-scheme: light;
+            --navy: #242044;
+            --ink: #2f2a4a;
+            --muted: #6f6888;
+            --purple: #7558e8;
+            --purple-dark: #5e45c9;
+            --pink: #ef6fa9;
+            --blue: #4b9ff5;
+            --mint: #35b99a;
+            --yellow: #ffd66b;
+            --card: rgba(255, 255, 255, .94);
+            --line: rgba(117, 88, 232, .18);
         }
 
         html, body, [class*="css"], .stApp {
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
-                         "Helvetica Neue", Arial, sans-serif;
+            font-family: "Avenir Next", Avenir, -apple-system, BlinkMacSystemFont,
+                         "Segoe UI", "Helvetica Neue", Arial, sans-serif;
             color: var(--ink) !important;
         }
 
         .stApp {
             background:
-                radial-gradient(circle at 14% -10%, rgba(94, 92, 230, .20), transparent 31rem),
-                radial-gradient(circle at 88% 0%, rgba(0, 122, 255, .13), transparent 30rem),
-                linear-gradient(180deg, #050507 0%, #08080b 46%, #0c0c10 100%);
+                radial-gradient(circle at 8% 2%, rgba(255, 214, 107, .36), transparent 24rem),
+                radial-gradient(circle at 95% 4%, rgba(118, 197, 255, .34), transparent 25rem),
+                radial-gradient(circle at 50% 88%, rgba(239, 111, 169, .18), transparent 30rem),
+                linear-gradient(180deg, #f9f7ff 0%, #eef7ff 48%, #fff8ee 100%);
             background-attachment: fixed;
         }
 
         [data-testid="stHeader"] {
-            background: rgba(5,5,7,.64);
-            backdrop-filter: blur(20px) saturate(150%);
-            -webkit-backdrop-filter: blur(20px) saturate(150%);
-            border-bottom: 1px solid rgba(255,255,255,.045);
+            background: rgba(249, 247, 255, .78);
+            backdrop-filter: blur(18px) saturate(150%);
+            -webkit-backdrop-filter: blur(18px) saturate(150%);
+            border-bottom: 1px solid rgba(117, 88, 232, .08);
         }
-        [data-testid="stToolbar"] { opacity: .78; }
+        [data-testid="stToolbar"] { opacity: .72; }
 
         .block-container {
-            max-width: 1240px;
-            padding-top: 1.1rem;
-            padding-bottom: 4rem;
+            max-width: 1180px;
+            padding-top: 1rem;
+            padding-bottom: 3.5rem;
         }
 
+        /* Friendly hero: playful enough for children without looking cluttered. */
         .hero {
+            position: relative;
             text-align: center;
             max-width: 920px;
-            margin: .5rem auto 1.25rem;
-            animation: rise .7s cubic-bezier(.2,.75,.2,1) both;
+            margin: .35rem auto 1.35rem;
+            padding: .55rem .5rem .1rem;
+            animation: rise .6s cubic-bezier(.2,.75,.2,1) both;
+        }
+        .hero::before,
+        .hero::after {
+            position: absolute;
+            font-size: clamp(1.5rem, 3vw, 2.2rem);
+            filter: drop-shadow(0 8px 12px rgba(117,88,232,.16));
+            pointer-events: none;
+        }
+        .hero::before { content: "⭐"; left: 4%; top: 16%; transform: rotate(-12deg); }
+        .hero::after  { content: "🌈"; right: 4%; top: 14%; transform: rotate(9deg); }
+
+        .magic-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: .35rem;
+            margin-bottom: .7rem;
+            padding: .4rem .72rem;
+            border-radius: 999px;
+            background: rgba(255,255,255,.76);
+            border: 1px solid rgba(117,88,232,.14);
+            box-shadow: 0 8px 24px rgba(72,54,140,.08);
+            color: #665b87 !important;
+            font-size: .78rem;
+            font-weight: 800;
+            letter-spacing: .08em;
+            text-transform: uppercase;
         }
         .hero h1 {
-            margin: 0 0 .9rem;
-            font-size: clamp(2.4rem, 5.2vw, 4.5rem);
-            line-height: .95;
-            letter-spacing: -.07em;
-            font-weight: 720;
-            color: #f5f5f7 !important;
+            margin: 0 0 .72rem;
+            font-size: clamp(2.35rem, 5vw, 4.35rem);
+            line-height: 1.02;
+            letter-spacing: -.055em;
+            font-weight: 850;
+            color: var(--navy) !important;
         }
         .hero-gradient {
-            background: linear-gradient(90deg, #64a8ff 0%, #9b8cff 50%, #d28cff 100%);
+            background: linear-gradient(90deg, #4b9ff5 0%, #7558e8 48%, #ef6fa9 100%);
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent !important;
         }
         .hero p {
-            max-width: 690px;
+            max-width: 710px;
             margin: 0 auto;
-            color: var(--muted) !important;
-            font-size: clamp(1.05rem, 2vw, 1.3rem);
-            line-height: 1.45;
-            letter-spacing: -.025em;
+            color: #645d80 !important;
+            font-size: clamp(1.05rem, 2vw, 1.28rem);
+            line-height: 1.5;
+            font-weight: 560;
+            letter-spacing: -.015em;
         }
+
         .flow-pills {
-            margin-top: .8rem;
+            margin-top: 1rem;
             display: flex;
             justify-content: center;
             flex-wrap: wrap;
-            gap: .48rem;
+            gap: .55rem;
         }
         .flow-pills span {
-            padding: .44rem .72rem;
+            display: inline-flex;
+            align-items: center;
+            min-height: 2.35rem;
+            padding: .42rem .78rem;
             border-radius: 999px;
-            background: rgba(255,255,255,.055);
-            border: 1px solid rgba(255,255,255,.08);
-            color: #c7c7cc !important;
-            font-size: .78rem;
-            font-weight: 650;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+            background: rgba(255,255,255,.82);
+            border: 1px solid rgba(117,88,232,.12);
+            color: #514a70 !important;
+            font-size: .88rem;
+            font-weight: 760;
+            box-shadow: 0 8px 22px rgba(77,62,136,.07);
         }
 
+        /* Primary cards stay light, rounded, and easy to scan. */
         div[data-testid="stVerticalBlockBorderWrapper"] {
             border: 1px solid var(--line) !important;
-            border-radius: 30px !important;
-            box-shadow: 0 22px 70px rgba(0,0,0,.28);
-            transition: transform .28s cubic-bezier(.2,.8,.2,1), box-shadow .28s ease, border-color .28s ease;
+            border-radius: 28px !important;
+            box-shadow: 0 18px 50px rgba(72,54,140,.10);
             overflow: hidden;
-            animation: rise .72s .05s cubic-bezier(.2,.75,.2,1) both;
-        }
-        div[data-testid="stVerticalBlockBorderWrapper"]:hover {
-            transform: translateY(-2px);
-            border-color: rgba(255,255,255,.17) !important;
-            box-shadow: 0 28px 80px rgba(0,0,0,.36);
+            animation: rise .65s .04s cubic-bezier(.2,.75,.2,1) both;
         }
         div[data-testid="stVerticalBlockBorderWrapper"] > div {
-            padding: 1.35rem .82rem .85rem;
+            padding: 1.3rem 1rem 1rem;
         }
 
-        /* Top setup card: both controls share one lavender-tinted dark surface. */
         .st-key-setup_panel > div[data-testid="stVerticalBlockBorderWrapper"] {
             background:
-                radial-gradient(circle at 12% 0%, rgba(167,139,250,.18), transparent 35%),
-                radial-gradient(circle at 88% 100%, rgba(100,168,255,.10), transparent 35%),
-                linear-gradient(145deg, rgba(33,28,48,.96), rgba(20,21,32,.98)) !important;
-            border-color: rgba(167,139,250,.20) !important;
+                radial-gradient(circle at 3% 5%, rgba(255,214,107,.28), transparent 30%),
+                radial-gradient(circle at 97% 95%, rgba(111,205,245,.22), transparent 30%),
+                var(--card) !important;
+            border-color: rgba(117,88,232,.18) !important;
         }
 
-        /* Balance Preview and Your Story as one clean product-style row. */
         .st-key-story_panel,
         .st-key-story_panel > div[data-testid="stVerticalBlockBorderWrapper"] {
-            background: linear-gradient(145deg, #123d38, #102a2b) !important;
-            border: 1px solid rgba(94,234,212,.38) !important;
-            border-radius: 24px;
-            min-height: 435px;
+            background:
+                radial-gradient(circle at 92% 5%, rgba(88,207,174,.16), transparent 35%),
+                linear-gradient(145deg, rgba(255,255,255,.98), rgba(244,255,251,.98)) !important;
+            border: 1px solid rgba(53,185,154,.24) !important;
+            border-radius: 26px;
+            min-height: 440px;
         }
         .st-key-story_panel > div[data-testid="stVerticalBlockBorderWrapper"] > div {
-            padding: 1.15rem 1rem 1rem;
+            padding: 1.25rem 1.15rem 1.05rem;
         }
 
         .st-key-preview_panel > div[data-testid="stVerticalBlockBorderWrapper"] {
             background: transparent !important;
             border: 0 !important;
             box-shadow: none !important;
-            min-height: 435px !important;
-            height: 435px !important;
+            min-height: 440px !important;
+            height: 440px !important;
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
+            animation: none !important;
         }
         .st-key-preview_panel > div[data-testid="stVerticalBlockBorderWrapper"] > div {
             width: 100% !important;
@@ -432,131 +467,147 @@ def inject_apple_style():
         }
 
         .section-kicker {
-            color: #92929a !important;
-            font-size: .72rem;
-            font-weight: 760;
-            letter-spacing: .1em;
+            display: inline-flex;
+            align-items: center;
+            padding: .26rem .55rem;
+            border-radius: 999px;
+            background: #f1edff;
+            color: #6c55c9 !important;
+            font-size: .78rem;
+            font-weight: 820;
+            letter-spacing: .045em;
             text-transform: uppercase;
-            margin-bottom: .18rem;
-        }
-        .section-title {
-            color: #f5f5f7 !important;
-            font-size: clamp(1.2rem, 2.03vw, 1.65rem);
-            font-weight: 710;
-            letter-spacing: -.045em;
-            line-height: 1.06;
             margin-bottom: .45rem;
         }
-        .section-copy {
-            color: #aaaab1 !important;
-            font-size: .95rem;
-            line-height: 1.46;
-            margin-bottom: 1rem;
+        .section-title {
+            color: var(--navy) !important;
+            font-size: clamp(1.28rem, 2.1vw, 1.7rem);
+            font-weight: 830;
+            letter-spacing: -.035em;
+            line-height: 1.08;
+            margin-bottom: .38rem;
         }
-        .control-heading {
-            color: #f5f5f7 !important;
-            font-size: .7rem;
-            font-weight: 720;
-            letter-spacing: -.02em;
-            margin: 0 0 .45rem;
+        .section-copy {
+            color: var(--muted) !important;
+            font-size: 1rem;
+            line-height: 1.5;
+            font-weight: 520;
+            margin-bottom: .9rem;
         }
 
-        /* Keep every Streamlit label and widget readable on the dark surface. */
+        /* Streamlit text defaults: dark text on the light child-friendly surface. */
         .stApp p,
         .stApp label,
         .stApp [data-testid="stMarkdownContainer"],
         .stApp [data-testid="stFileUploaderDropzoneInstructions"],
         .stApp [data-testid="stCaptionContainer"] {
-            color: #f5f5f7 !important;
+            color: var(--ink) !important;
         }
         .stApp small,
         .stApp [data-testid="stFileUploaderDropzoneInstructions"] small,
         .stApp [data-testid="stCaptionContainer"] p {
-            color: #a1a1a6 !important;
+            color: var(--muted) !important;
         }
 
+        /*
+         * Contrast safeguards.
+         * Streamlit/BaseWeb can render some widget text in a portal outside .stApp and
+         * may inherit the active browser/theme foreground color. Explicit colors here
+         * keep labels readable on our light surfaces in both light and dark OS themes.
+         */
+        [data-testid="stFileUploaderDropzoneInstructions"],
+        [data-testid="stFileUploaderDropzoneInstructions"] *,
+        [data-testid="stFileUploaderFileData"],
+        [data-testid="stFileUploaderFileData"] * {
+            color: #514a70 !important;
+            -webkit-text-fill-color: #514a70 !important;
+            opacity: 1 !important;
+        }
+
+        /* Large touch targets make upload and voice selection easier for small hands. */
         [data-testid="stFileUploaderDropzone"] {
-            min-height: 3rem !important;
-            height: 3rem !important;
-            padding: .25rem .55rem !important;
-            border: 1px solid rgba(255,255,255,.11) !important;
-            border-radius: 16px !important;
-            background: rgba(255,255,255,.06) !important;
-            transition: border-color .25s ease, background .25s ease, transform .25s ease;
+            min-height: 3.5rem !important;
+            padding: .38rem .65rem !important;
+            border: 2px dashed rgba(117,88,232,.26) !important;
+            border-radius: 18px !important;
+            background: rgba(248,246,255,.92) !important;
+            transition: border-color .2s ease, background .2s ease, transform .2s ease;
             display: flex !important;
             align-items: center !important;
         }
         [data-testid="stFileUploaderDropzone"] > div {
             min-height: 0 !important;
             padding: 0 !important;
-            gap: .45rem !important;
+            gap: .5rem !important;
             align-items: center !important;
         }
         [data-testid="stFileUploaderDropzone"] svg {
-            width: 1.2rem !important;
-            height: 1.2rem !important;
+            width: 1.45rem !important;
+            height: 1.45rem !important;
+            color: var(--purple) !important;
             flex: 0 0 auto !important;
         }
         [data-testid="stFileUploaderDropzoneInstructions"] {
             margin: 0 !important;
-            line-height: 1.05 !important;
+            line-height: 1.15 !important;
         }
         [data-testid="stFileUploaderDropzoneInstructions"] > div {
             margin: 0 !important;
             padding: 0 !important;
         }
-        [data-testid="stFileUploaderDropzoneInstructions"] small {
-            display: none !important;
-        }
+        [data-testid="stFileUploaderDropzoneInstructions"] small { display: none !important; }
         [data-testid="stFileUploaderDropzoneInstructions"] span,
         [data-testid="stFileUploaderDropzoneInstructions"] p {
-            font-size: .78rem !important;
-            line-height: 1.05 !important;
+            font-size: .92rem !important;
+            line-height: 1.15 !important;
+            font-weight: 650 !important;
             margin: 0 !important;
         }
         [data-testid="stFileUploaderDropzone"]:hover {
-            border-color: rgba(167,139,250,.48) !important;
-            background: rgba(255,255,255,.075) !important;
-            transform: scale(1.002);
+            border-color: rgba(117,88,232,.55) !important;
+            background: #f3efff !important;
+            transform: translateY(-1px);
         }
         [data-testid="stFileUploaderDropzone"] button {
+            min-height: 2.65rem !important;
+            padding: .45rem .85rem !important;
             border-radius: 999px !important;
-            border: 1px solid rgba(255,255,255,.09) !important;
-            background: rgba(255,255,255,.09) !important;
-            color: #f5f5f7 !important;
-            box-shadow: none !important;
-            min-height: 2rem !important;
-            height: 2rem !important;
-            padding: .2rem .62rem !important;
-            font-size: .78rem !important;
+            border: 1px solid rgba(117,88,232,.20) !important;
+            background: #ffffff !important;
+            color: #5f49c7 !important;
+            box-shadow: 0 6px 16px rgba(85,63,172,.10) !important;
+            font-size: .9rem !important;
+            font-weight: 760 !important;
             white-space: nowrap !important;
         }
         [data-testid="stFileUploaderDropzone"] button p {
-            color: #f5f5f7 !important;
-            font-size: .78rem !important;
+            color: #5f49c7 !important;
+            font-size: .9rem !important;
+            font-weight: 760 !important;
         }
 
-        /* Make only the selected file name smaller; keep the file size unchanged. */
+        /* Keep long uploaded file names visually secondary. */
         [data-testid="stFileUploaderFileName"],
         [data-testid="stFileUploaderFileName"] *,
         [data-testid="stFileUploaderFileData"] > div:first-child,
         [data-testid="stFileUploaderFileData"] > div:first-child * {
-            font-size: .54rem !important;
-            line-height: 1.05 !important;
+            font-size: .68rem !important;
+            line-height: 1.1 !important;
+            color: #746d8d !important;
         }
 
         [data-baseweb="select"] > div {
-            border-radius: 16px !important;
-            border-color: rgba(255,255,255,.11) !important;
-            background: rgba(255,255,255,.06) !important;
-            min-height: 3rem !important;
-            height: 3rem !important;
-            color: #f5f5f7 !important;
+            border-radius: 18px !important;
+            border: 2px solid rgba(117,88,232,.20) !important;
+            background: #ffffff !important;
+            min-height: 3.5rem !important;
+            color: var(--ink) !important;
+            box-shadow: 0 5px 16px rgba(77,62,136,.06) !important;
             display: flex !important;
             align-items: center !important;
         }
         [data-baseweb="select"] > div > div {
-            min-height: 3rem !important;
+            min-height: 3.5rem !important;
             display: flex !important;
             align-items: center !important;
             padding-top: 0 !important;
@@ -565,232 +616,313 @@ def inject_apple_style():
         [data-baseweb="select"] div[role="combobox"] {
             display: flex !important;
             align-items: center !important;
-            min-height: 3rem !important;
-            font-size: .92rem !important;
-            font-weight: 560 !important;
+            min-height: 3.5rem !important;
+            font-size: 1rem !important;
+            font-weight: 680 !important;
             line-height: 1.2 !important;
-            letter-spacing: -.01em !important;
         }
         [data-baseweb="select"] > div:focus-within {
-            border-color: rgba(167,139,250,.48) !important;
-            box-shadow: 0 0 0 3px rgba(167,139,250,.09) !important;
+            border-color: rgba(117,88,232,.62) !important;
+            box-shadow: 0 0 0 4px rgba(117,88,232,.10) !important;
         }
-        [data-baseweb="select"] * { color: #f5f5f7 !important; }
-        [data-baseweb="popover"] { color: #f5f5f7 !important; }
-        [role="listbox"] { background: #1b1b21 !important; }
-        [role="option"] { color: #f5f5f7 !important; }
+        [data-baseweb="select"] *,
+        [data-baseweb="select"] input,
+        [data-baseweb="select"] svg {
+            color: var(--ink) !important;
+            -webkit-text-fill-color: var(--ink) !important;
+            opacity: 1 !important;
+        }
+
+        /*
+         * The select menu is rendered by BaseWeb in a portal, so it does not always
+         * inherit the app's light palette. Force a light menu and high-contrast text
+         * so every storyteller remains readable regardless of Streamlit/OS theme.
+         */
+        [data-baseweb="popover"],
+        [data-baseweb="popover"] > div,
+        [data-baseweb="popover"] [data-baseweb="menu"],
+        [data-baseweb="popover"] [role="listbox"],
+        [data-baseweb="menu"],
+        [role="listbox"] {
+            background: #ffffff !important;
+            background-color: #ffffff !important;
+            color: var(--ink) !important;
+            -webkit-text-fill-color: var(--ink) !important;
+        }
+        [data-baseweb="popover"] [role="listbox"],
+        [role="listbox"] {
+            border: 1px solid rgba(117,88,232,.18) !important;
+            border-radius: 16px !important;
+            box-shadow: 0 14px 34px rgba(57,42,115,.16) !important;
+            overflow: hidden !important;
+        }
+        [data-baseweb="popover"] [role="option"],
+        [role="listbox"] [role="option"] {
+            background: #ffffff !important;
+            color: var(--ink) !important;
+            -webkit-text-fill-color: var(--ink) !important;
+            font-weight: 650 !important;
+            opacity: 1 !important;
+        }
+        [data-baseweb="popover"] [role="option"] *,
+        [role="listbox"] [role="option"] * {
+            color: var(--ink) !important;
+            -webkit-text-fill-color: var(--ink) !important;
+            opacity: 1 !important;
+        }
+        [data-baseweb="popover"] [role="option"]:hover,
+        [role="listbox"] [role="option"]:hover {
+            background: #f5f1ff !important;
+        }
+        [data-baseweb="popover"] [role="option"][aria-selected="true"],
+        [role="listbox"] [role="option"][aria-selected="true"] {
+            background: #eee9ff !important;
+        }
 
         .stButton > button,
         .stDownloadButton > button {
             width: 100%;
-            min-height: 2.2rem;
-            padding: .35rem .8rem !important;
-            border: 0 !important;
+            min-height: 3rem;
+            padding: .55rem 1rem !important;
             border-radius: 999px !important;
-            font-size: .7rem !important;
-            font-weight: 700 !important;
+            font-size: .98rem !important;
+            font-weight: 790 !important;
             letter-spacing: -.01em;
-            transition: transform .2s ease, box-shadow .2s ease, filter .2s ease !important;
-        }
-        .stButton > button[kind="primary"] {
-            color: #ffffff !important;
-            background: linear-gradient(135deg, #6e5cff 0%, #9b6cff 100%) !important;
-            box-shadow: 0 10px 30px rgba(110,92,255,.27) !important;
-        }
-        .stButton > button[kind="primary"] p { color: #ffffff !important; font-size: .7rem !important; }
-        .stButton > button:hover,
-        .stDownloadButton > button:hover {
-            transform: translateY(-2px) scale(1.005);
-            filter: brightness(1.05);
-            box-shadow: 0 14px 36px rgba(0,0,0,.28) !important;
-        }
-        .stButton > button:active,
-        .stDownloadButton > button:active { transform: scale(.99); }
-        .stButton > button p,
-        .stDownloadButton > button p {
-            font-size: .7rem !important;
+            transition: transform .18s ease, box-shadow .18s ease, filter .18s ease !important;
         }
 
-        /* Compact, centered primary story action. */
+        /* Download actions must stay readable even when the browser/OS uses dark mode. */
+        .stDownloadButton > button {
+            background: #f7f4ff !important;
+            border: 1px solid rgba(117,88,232,.28) !important;
+            color: #443b66 !important;
+            -webkit-text-fill-color: #443b66 !important;
+            box-shadow: 0 6px 16px rgba(72,54,140,.08) !important;
+        }
+        .stDownloadButton > button p,
+        .stDownloadButton > button span,
+        .stDownloadButton > button div {
+            color: #443b66 !important;
+            -webkit-text-fill-color: #443b66 !important;
+            opacity: 1 !important;
+        }
+        .stDownloadButton > button svg {
+            color: #7558e8 !important;
+            fill: currentColor !important;
+        }
+        .stDownloadButton > button:hover {
+            background: #eee9ff !important;
+            border-color: rgba(117,88,232,.42) !important;
+            color: #332b54 !important;
+            -webkit-text-fill-color: #332b54 !important;
+        }
+        .stButton > button[kind="primary"] {
+            border: 0 !important;
+            color: #ffffff !important;
+            background: linear-gradient(135deg, #5c8df6 0%, #7558e8 52%, #a85fd7 100%) !important;
+            box-shadow: 0 10px 25px rgba(103,78,214,.28) !important;
+        }
+        .stButton > button[kind="primary"] p {
+            color: #ffffff !important;
+            font-size: 1rem !important;
+            font-weight: 800 !important;
+        }
+        .stButton > button:hover,
+        .stDownloadButton > button:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.03);
+            box-shadow: 0 12px 28px rgba(73,54,145,.20) !important;
+        }
+        .stButton > button:active,
+        .stDownloadButton > button:active { transform: scale(.985); }
+        .stButton > button p,
+        .stDownloadButton > button p { font-size: .95rem !important; }
+
+        /* Place the compact theme switch just to the left of the hero star.
+         * A filled purple pill gives the control enough contrast to stay obvious
+         * against the pale hero background and avoids relying on Streamlit defaults.
+         */
+        .st-key-hero_wrap {
+            position: relative !important;
+        }
+        .st-key-hero_wrap .st-key-theme_toggle {
+            position: absolute !important;
+            top: 2.05rem !important;
+            left: calc(50% - 460px + 1rem) !important;
+            transform: translateX(-100%) !important;
+            z-index: 20 !important;
+            width: auto !important;
+        }
+        .st-key-theme_toggle .stButton { width: auto !important; }
+        .st-key-theme_toggle .stButton > button,
+        div.st-key-theme_toggle button,
+        [class*="st-key-theme_toggle"] button {
+            min-height: 2.45rem !important;
+            width: auto !important;
+            padding: .34rem .78rem !important;
+            background: linear-gradient(135deg, #6b65ee 0%, #7b5ce8 55%, #9a5edc 100%) !important;
+            border: 1px solid rgba(92,71,196,.28) !important;
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
+            box-shadow: 0 8px 20px rgba(87,67,184,.24) !important;
+            white-space: nowrap !important;
+            opacity: 1 !important;
+        }
+        .st-key-theme_toggle .stButton > button p,
+        div.st-key-theme_toggle button p,
+        [class*="st-key-theme_toggle"] button p {
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
+            font-size: .88rem !important;
+            font-weight: 800 !important;
+            opacity: 1 !important;
+        }
+        .st-key-theme_toggle .stButton > button:hover,
+        div.st-key-theme_toggle button:hover,
+        [class*="st-key-theme_toggle"] button:hover {
+            background: linear-gradient(135deg, #5f58df 0%, #704fdd 55%, #8d50d0 100%) !important;
+            border-color: rgba(92,71,196,.45) !important;
+            box-shadow: 0 10px 24px rgba(87,67,184,.30) !important;
+        }
+
+        @media (max-width: 1100px) {
+            /* Keep the switch immediately to the left of the star on narrower screens. */
+            .st-key-hero_wrap .st-key-theme_toggle {
+                top: 1.35rem !important;
+                left: .35rem !important;
+                right: auto !important;
+                transform: none !important;
+            }
+            .hero::before {
+                left: 5.7rem !important;
+                top: 10% !important;
+            }
+            .st-key-theme_toggle .stButton > button {
+                min-height: 2.25rem !important;
+                padding: .28rem .58rem !important;
+            }
+            .st-key-theme_toggle .stButton > button p {
+                font-size: .78rem !important;
+            }
+        }
+
+        @media (max-width: 620px) {
+            /* Give the compact theme control and star their own row above the headline. */
+            .hero { padding-top: 3.15rem !important; }
+            .hero::before {
+                left: 5.4rem !important;
+                top: .58rem !important;
+            }
+            .hero::after {
+                right: .75rem !important;
+                top: .58rem !important;
+            }
+            .st-key-hero_wrap .st-key-theme_toggle {
+                top: 1.05rem !important;
+                left: .35rem !important;
+                right: auto !important;
+                transform: none !important;
+            }
+        }
+
+        /* Main creation action is intentionally large and centered. */
         .st-key-create_story {
             display: flex !important;
             justify-content: center !important;
             width: 100% !important;
-            padding-top: .35rem;
+            padding-top: .45rem;
         }
-        .st-key-create_story .stButton {
-            width: auto !important;
-        }
+        .st-key-create_story .stButton { width: auto !important; }
         .st-key-create_story .stButton > button {
             width: auto !important;
-            min-width: 9.5rem !important;
-            min-height: 2rem !important;
-            height: 2rem !important;
-            padding: .24rem .9rem !important;
-            font-size: .78rem !important;
-            box-shadow: 0 8px 24px rgba(110,92,255,.24) !important;
+            min-width: 13.5rem !important;
+            min-height: 3.3rem !important;
+            padding: .56rem 1.35rem !important;
+            font-size: 1.05rem !important;
+            box-shadow: 0 11px 28px rgba(103,78,214,.28) !important;
         }
         .st-key-create_story .stButton > button p {
-            font-size: .95rem !important;
-            font-weight: 650 !important;
+            font-size: 1.05rem !important;
+            font-weight: 820 !important;
         }
 
-        div[data-testid="stImage"] { margin-top: .25rem; }
-        div[data-testid="stImage"] img {
-            border-radius: 22px !important;
-            box-shadow: 0 14px 42px rgba(0,0,0,.34);
-            animation: fadeIn .45s ease both;
+        /* Secondary narration action uses the same visual language when enabled. */
+        .st-key-retry_narration button:not(:disabled) {
+            border: 0 !important;
+            color: #ffffff !important;
+            background: linear-gradient(135deg, #5c8df6 0%, #7558e8 52%, #a85fd7 100%) !important;
+            box-shadow: 0 10px 25px rgba(103,78,214,.24) !important;
         }
+        .st-key-retry_narration button:not(:disabled) p { color: #ffffff !important; }
 
-        [data-testid="stProgress"] > div > div > div > div {
-            background: linear-gradient(90deg, #64a8ff, #9b8cff, #d28cff) !important;
-        }
-        [data-testid="stProgress"] > div > div > div {
-            border-radius: 999px !important;
-            overflow: hidden;
-        }
-        [data-testid="stProgress"] {
-            margin: .65rem 0 .75rem !important;
-        }
-        [data-testid="stProgress"] p {
-            margin-bottom: .32rem !important;
-            font-size: .82rem !important;
-            line-height: 1.25 !important;
-            font-weight: 600 !important;
-            color: #d8d8de !important;
-        }
-        [data-testid="stAudio"] {
-            border-radius: 18px;
-            overflow: hidden;
-        }
-        details {
-            border: 1px solid rgba(255,255,255,.08) !important;
-            border-radius: 18px !important;
-            background: rgba(255,255,255,.035) !important;
-            color: #f5f5f7 !important;
-        }
-
-        /* Compact detailed-description panel under the preview. */
-        .st-key-description_panel {
-            margin-top: 1.5rem !important;
-        }
-        .st-key-description_panel details {
-            border-radius: 12px !important;
-        }
-        .st-key-description_panel details summary {
-            min-height: 2rem !important;
-            padding: .38rem .6rem !important;
-        }
-        .st-key-description_panel details summary p {
-            font-size: .84rem !important;
-            line-height: 1.25 !important;
-            font-weight: 600 !important;
-        }
-        .st-key-description_panel [data-testid="stExpanderDetails"] {
-            padding: .25rem .7rem .55rem !important;
-        }
-        .st-key-description_panel [data-testid="stExpanderDetails"] p {
-            font-size: .82rem !important;
-            line-height: 1.42 !important;
-        }
-        [data-testid="stAlert"] {
-            border-radius: 18px !important;
-            border: 1px solid rgba(255,255,255,.08) !important;
-            color: #f5f5f7 !important;
-        }
-
-        /* Story area restored: readable, open, and separate from the voice selector. */
-        .story-shell {
-            padding: .85rem .95rem;
-            border-radius: 18px;
-            border: 1px solid rgba(255,255,255,.10);
-            background: rgba(255,255,255,.045);
-        }
-        .story-text {
-            font-size: .9rem;
-            line-height: 1.42;
-            letter-spacing: -.01em;
-            color: #d8ccff !important;
-            margin: 0;
-        }
-        .st-key-story_panel [data-testid="stSpinner"] {
-            margin-top: 1.15rem !important;
-        }
-        .st-key-story_panel [data-testid="stSpinner"] p {
-            font-size: .84rem !important;
-            color: #d8d8de !important;
-        }
-        .word-chip {
-            display: inline-flex;
-            align-items: center;
-            margin-top: .55rem;
-            padding: .2rem .5rem;
-            border-radius: 999px;
-            background: rgba(255,255,255,.06);
-            border: 1px solid rgba(255,255,255,.08);
-            color: #9f9fa7 !important;
-            font-size: .7rem;
-            font-weight: 650;
-        }
-
-        .empty-state {
-            min-height: 270px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 1rem 1.2rem;
-            margin-bottom: 1rem;
-            border-radius: 22px;
-            border: 1px solid rgba(255,255,255,.04) !important;
-            background:
-                radial-gradient(circle at 35% 25%, rgba(100,168,255,.07), transparent 34%),
-                radial-gradient(circle at 70% 68%, rgba(210,140,255,.07), transparent 36%),
-                rgba(255,255,255,.025) !important;
+        /* Disabled actions remain obviously inactive and do not react on hover. */
+        .st-key-create_story button:disabled,
+        .st-key-create_story button:disabled:hover,
+        .st-key-retry_narration button:disabled,
+        .st-key-retry_narration button:disabled:hover {
+            background: #e8e6ef !important;
+            color: #8a849d !important;
+            border: 1px solid #d4d0df !important;
             box-shadow: none !important;
-            overflow: hidden;
-            position: relative;
+            transform: none !important;
+            filter: none !important;
+            cursor: not-allowed !important;
+            opacity: 1 !important;
         }
-        .empty-orb {
-            width: 54px;
-            height: 54px;
-            border-radius: 18px;
-            background: linear-gradient(145deg, #25252d, #17171c);
-            box-shadow: 0 18px 45px rgba(0,0,0,.30), inset 0 1px 0 rgba(255,255,255,.08);
-            display: grid;
-            place-items: center;
-            color: #f5f5f7 !important;
-            font-size: 1.35rem;
-            margin-bottom: .55rem;
-            animation: float 4s ease-in-out infinite;
-        }
-        .empty-state strong {
-            color: #f5f5f7 !important;
-            font-size: 1rem;
-            letter-spacing: -.025em;
-        }
-        .empty-state p {
-            max-width: 360px;
-            margin: .25rem auto 0;
-            color: #a1a1a6 !important;
-            font-size: .8rem;
-            line-height: 1.35;
-        }
+        .st-key-create_story button:disabled p,
+        .st-key-retry_narration button:disabled p { color: #8a849d !important; }
+
+        /* Picture preview behaves like a cheerful frame rather than an empty technical panel. */
         .preview-empty,
         .preview-image-box {
             width: 100%;
-            height: 320px;
+            height: 338px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border: 0 !important;
-            background: transparent !important;
-            box-shadow: none !important;
-            overflow: visible;
             box-sizing: border-box;
+            border-radius: 28px;
         }
-
+        .preview-empty {
+            flex-direction: column;
+            text-align: center;
+            padding: 1.5rem;
+            border: 2px dashed rgba(75,159,245,.26) !important;
+            background:
+                radial-gradient(circle at 25% 20%, rgba(255,214,107,.20), transparent 30%),
+                radial-gradient(circle at 75% 80%, rgba(239,111,169,.12), transparent 34%),
+                rgba(255,255,255,.58) !important;
+            color: var(--ink) !important;
+        }
+        .preview-placeholder-icon {
+            width: 72px;
+            height: 72px;
+            display: grid;
+            place-items: center;
+            margin-bottom: .7rem;
+            border-radius: 24px;
+            background: linear-gradient(145deg, #ffffff, #f3efff);
+            box-shadow: 0 12px 28px rgba(80,61,159,.12);
+            font-size: 2rem;
+            animation: float 4.5s ease-in-out infinite;
+        }
+        .preview-empty strong {
+            color: var(--navy) !important;
+            font-size: 1.08rem;
+            font-weight: 820;
+        }
+        .preview-empty p {
+            max-width: 340px;
+            margin: .3rem auto 0;
+            color: var(--muted) !important;
+            font-size: .92rem;
+            line-height: 1.45;
+        }
+        .preview-image-box {
+            background: transparent !important;
+            border: 0 !important;
+            overflow: visible;
+        }
         .preview-image-box img {
             display: block;
             width: auto;
@@ -800,44 +932,208 @@ def inject_apple_style():
             object-fit: contain;
             object-position: center center;
             margin: auto;
-            border: 0;
-            background: transparent;
-            box-shadow: 0 18px 42px rgba(0,0,0,.22);
+            padding: .45rem;
+            border: 7px solid rgba(255,255,255,.94);
+            border-radius: 26px;
+            background: #ffffff;
+            box-shadow: 0 18px 42px rgba(67,52,122,.16);
+            animation: fadeIn .42s ease both;
+        }
+
+        [data-testid="stProgress"] { margin: .8rem 0 .85rem !important; }
+        [data-testid="stProgress"] > div > div > div > div {
+            background: linear-gradient(90deg, #4b9ff5, #7558e8, #ef6fa9) !important;
+        }
+        [data-testid="stProgress"] > div > div > div {
+            border-radius: 999px !important;
+            overflow: hidden;
+        }
+        [data-testid="stProgress"] p {
+            margin-bottom: .35rem !important;
+            font-size: .94rem !important;
+            line-height: 1.35 !important;
+            font-weight: 700 !important;
+            color: #5d5675 !important;
+        }
+
+        [data-testid="stAudio"] {
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 6px 18px rgba(65,50,125,.08);
+        }
+
+        /* The story is the star: large type, generous spacing, and a soft reading surface. */
+        .story-shell {
+            padding: 1.05rem 1.1rem;
+            border-radius: 20px;
+            border: 1px solid rgba(53,185,154,.18);
+            background: rgba(255,255,255,.86);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.75);
+        }
+        .story-text {
+            font-size: clamp(1.03rem, 1.7vw, 1.18rem);
+            line-height: 1.7;
+            letter-spacing: -.006em;
+            color: #273b43 !important;
+            font-weight: 560;
+            margin: 0;
+        }
+        .word-chip {
+            display: inline-flex;
+            align-items: center;
+            margin-top: .7rem;
+            padding: .28rem .58rem;
+            border-radius: 999px;
+            background: #effbf7;
+            border: 1px solid rgba(53,185,154,.18);
+            color: #408271 !important;
+            font-size: .76rem;
+            font-weight: 750;
+        }
+        .st-key-story_panel [data-testid="stSpinner"] { margin-top: 1rem !important; }
+        .st-key-story_panel [data-testid="stSpinner"] p {
+            font-size: .92rem !important;
+            color: #5d5675 !important;
+            font-weight: 650 !important;
+        }
+
+        .empty-state {
+            min-height: 270px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 1rem 1.25rem;
+            margin-bottom: .7rem;
+            border-radius: 22px;
+            border: 1px solid rgba(117,88,232,.10) !important;
+            background:
+                radial-gradient(circle at 28% 20%, rgba(255,214,107,.20), transparent 32%),
+                radial-gradient(circle at 72% 72%, rgba(75,159,245,.12), transparent 35%),
+                rgba(255,255,255,.68) !important;
+        }
+        .empty-orb {
+            width: 68px;
+            height: 68px;
+            border-radius: 23px;
+            background: linear-gradient(145deg, #ffffff, #f2edff);
+            box-shadow: 0 13px 30px rgba(78,59,157,.13);
+            display: grid;
+            place-items: center;
+            color: #7558e8 !important;
+            font-size: 1.8rem;
+            margin-bottom: .65rem;
+            animation: float 4s ease-in-out infinite;
+        }
+        .empty-state strong {
+            color: var(--navy) !important;
+            font-size: 1.12rem;
+            font-weight: 830;
+            letter-spacing: -.02em;
+        }
+        .empty-state p {
+            max-width: 370px;
+            margin: .3rem auto 0;
+            color: var(--muted) !important;
+            font-size: .92rem;
+            line-height: 1.45;
+        }
+
+        /*
+         * Expanders are rendered with theme-aware BaseWeb styles. Force a light surface
+         * and explicit foreground colors so "grown-up" sections remain legible in dark mode.
+         */
+        details,
+        [data-testid="stExpander"] details {
+            border: 1px solid rgba(117,88,232,.16) !important;
+            border-radius: 16px !important;
+            background: rgba(255,255,255,.96) !important;
+            color: var(--ink) !important;
+            overflow: hidden !important;
+        }
+        details > summary,
+        [data-testid="stExpander"] summary {
+            background: #f8f6ff !important;
+            color: #4f466c !important;
+            -webkit-text-fill-color: #4f466c !important;
+            font-weight: 750 !important;
+        }
+        details > summary *,
+        [data-testid="stExpander"] summary * {
+            color: #4f466c !important;
+            -webkit-text-fill-color: #4f466c !important;
+            opacity: 1 !important;
+        }
+        details > summary svg,
+        [data-testid="stExpander"] summary svg {
+            color: #6656a8 !important;
+            fill: currentColor !important;
+        }
+        [data-testid="stExpanderDetails"] {
+            background: #ffffff !important;
+            color: var(--ink) !important;
+        }
+        [data-testid="stExpanderDetails"] p,
+        [data-testid="stExpanderDetails"] span,
+        [data-testid="stExpanderDetails"] div {
+            color: #5d5675 !important;
+            -webkit-text-fill-color: #5d5675 !important;
+        }
+        .st-key-description_panel { margin-top: 1rem !important; }
+        .st-key-description_panel details summary { min-height: 2.45rem !important; }
+        .st-key-description_panel [data-testid="stExpanderDetails"] p {
+            font-size: .88rem !important;
+            line-height: 1.5 !important;
+            color: #676078 !important;
+        }
+
+        [data-testid="stAlert"] {
+            border-radius: 16px !important;
+            border: 1px solid rgba(117,88,232,.12) !important;
         }
 
         .footer-note {
             text-align: center;
-            color: #7f7f86 !important;
-            font-size: .78rem;
-            padding-top: 2.4rem;
+            color: #817a96 !important;
+            font-size: .8rem;
+            font-weight: 600;
+            padding-top: 2.1rem;
         }
 
         @keyframes rise {
-            from { opacity: 0; transform: translateY(16px); }
+            from { opacity: 0; transform: translateY(12px); }
             to   { opacity: 1; transform: translateY(0); }
         }
         @keyframes fadeIn {
-            from { opacity: 0; }
-            to   { opacity: 1; }
+            from { opacity: 0; transform: scale(.985); }
+            to   { opacity: 1; transform: scale(1); }
         }
         @keyframes float {
             0%, 100% { transform: translateY(0) rotate(-1deg); }
-            50% { transform: translateY(-8px) rotate(1deg); }
+            50% { transform: translateY(-6px) rotate(1deg); }
         }
 
         @media (max-width: 800px) {
-            .block-container { padding-left: 1rem; padding-right: 1rem; }
-            .hero { margin: .4rem auto 1.1rem; }
-            .hero h1 { letter-spacing: -.055em; }
-            div[data-testid="stVerticalBlockBorderWrapper"] { border-radius: 24px !important; }
+            .block-container { padding-left: .85rem; padding-right: .85rem; }
+            .hero { margin: .15rem auto 1rem; }
+            .hero::before { left: 0; top: 19%; }
+            .hero::after { right: 0; top: 18%; }
+            .flow-pills { gap: .4rem; }
+            .flow-pills span { font-size: .8rem; min-height: 2.2rem; }
+            div[data-testid="stVerticalBlockBorderWrapper"] { border-radius: 22px !important; }
             .st-key-story_panel > div[data-testid="stVerticalBlockBorderWrapper"],
             .st-key-preview_panel > div[data-testid="stVerticalBlockBorderWrapper"] {
                 min-height: 0 !important;
                 height: auto !important;
             }
-            .empty-state { min-height: 205px; }
             .preview-empty,
-            .preview-image-box { height: 245px !important; }
+            .preview-image-box { height: 270px !important; }
+            .empty-state { min-height: 220px; }
+            .st-key-create_story .stButton > button {
+                min-width: 12rem !important;
+                width: min(100%, 20rem) !important;
+            }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -848,45 +1144,331 @@ def inject_apple_style():
                 scroll-behavior: auto !important;
             }
         }
-        /* Keep disabled actions unmistakably inactive, including on hover. */
-        .st-key-create_story button:disabled,
-        .st-key-create_story button:disabled:hover {
-            background: #303039 !important;
-            color: #b7b7bf !important;
-            border: 1px solid #494952 !important;
-            box-shadow: none !important;
-            transform: none !important;
-            filter: none !important;
-            cursor: not-allowed !important;
-            opacity: 1 !important;
-        }
-        .st-key-create_story button:disabled p { color: #b7b7bf !important; }
-        .st-key-story_panel .story-text { color: #e4fff7 !important; }
-        .st-key-retry_narration button:not(:disabled) {
-            background: linear-gradient(135deg, #6e5cff 0%, #9b6cff 100%) !important;
-            border: 0 !important;
-            color: #ffffff !important;
-            box-shadow: 0 10px 30px rgba(110,92,255,.27) !important;
-        }
-        .st-key-retry_narration button:not(:disabled):hover {
-            filter: brightness(1.05) !important;
-            box-shadow: 0 14px 36px rgba(110,92,255,.30) !important;
-        }
-        .st-key-retry_narration button:disabled,
-        .st-key-retry_narration button:disabled:hover {
-            background: #303039 !important;
-            border: 1px solid #494952 !important;
-            color: #b7b7bf !important;
-            box-shadow: none !important;
-            transform: none !important;
-            filter: none !important;
-            cursor: not-allowed !important;
-        }
-        .st-key-retry_narration button:disabled p { color: #b7b7bf !important; }
         </style>
         """,
         unsafe_allow_html=True,
     )
+
+
+    if theme == "dark":
+        # Dark mode only overrides color and contrast. Layout, sizing, and child-friendly
+        # interaction patterns remain identical to the reviewed light version.
+        st.markdown(
+            """
+            <style>
+            :root {
+                color-scheme: dark;
+                --navy: #f7f4ff;
+                --ink: #f3efff;
+                --muted: #c8c1dc;
+                --purple: #9b82ff;
+                --purple-dark: #7e64e8;
+                --pink: #ff86b8;
+                --blue: #78beff;
+                --mint: #67d8b8;
+                --yellow: #ffd86f;
+                --card: rgba(29, 31, 56, .94);
+                --line: rgba(170, 153, 255, .24);
+            }
+
+            .stApp {
+                background:
+                    radial-gradient(circle at 8% 0%, rgba(255,216,111,.16), transparent 24rem),
+                    radial-gradient(circle at 96% 4%, rgba(120,190,255,.18), transparent 28rem),
+                    radial-gradient(circle at 50% 94%, rgba(255,134,184,.14), transparent 32rem),
+                    linear-gradient(180deg, #0d0f22 0%, #12162d 45%, #171428 100%) !important;
+            }
+            [data-testid="stHeader"] {
+                background: rgba(13,15,34,.84) !important;
+                border-bottom-color: rgba(170,153,255,.10) !important;
+            }
+
+            .magic-badge {
+                background: rgba(38,40,70,.88) !important;
+                border-color: rgba(170,153,255,.20) !important;
+                color: #ded7f5 !important;
+                box-shadow: 0 10px 28px rgba(0,0,0,.24) !important;
+            }
+            .hero h1 { color: #f7f4ff !important; text-shadow: 0 10px 30px rgba(0,0,0,.20); }
+            .hero-gradient {
+                background: linear-gradient(90deg, #7fc7ff 0%, #aa8dff 48%, #ff93c2 100%) !important;
+                -webkit-background-clip: text !important;
+                background-clip: text !important;
+                color: transparent !important;
+            }
+            .hero p { color: #d0c9e2 !important; }
+            .flow-pills span {
+                background: rgba(35,38,67,.90) !important;
+                border-color: rgba(170,153,255,.18) !important;
+                color: #eeeaff !important;
+                box-shadow: 0 8px 22px rgba(0,0,0,.18) !important;
+            }
+
+            div[data-testid="stVerticalBlockBorderWrapper"] {
+                border-color: var(--line) !important;
+                box-shadow: 0 20px 54px rgba(0,0,0,.28) !important;
+            }
+            .st-key-setup_panel > div[data-testid="stVerticalBlockBorderWrapper"] {
+                background:
+                    radial-gradient(circle at 4% 6%, rgba(255,216,111,.10), transparent 31%),
+                    radial-gradient(circle at 96% 92%, rgba(120,190,255,.10), transparent 31%),
+                    linear-gradient(145deg, rgba(29,31,56,.97), rgba(25,28,51,.97)) !important;
+                border-color: rgba(170,153,255,.25) !important;
+            }
+            .st-key-story_panel,
+            .st-key-story_panel > div[data-testid="stVerticalBlockBorderWrapper"] {
+                background:
+                    radial-gradient(circle at 92% 6%, rgba(103,216,184,.10), transparent 35%),
+                    linear-gradient(145deg, rgba(28,33,54,.98), rgba(24,39,44,.97)) !important;
+                border-color: rgba(103,216,184,.26) !important;
+            }
+            .section-kicker {
+                background: rgba(155,130,255,.15) !important;
+                border: 1px solid rgba(155,130,255,.16) !important;
+                color: #c7b8ff !important;
+            }
+            .section-title { color: #faf8ff !important; }
+            .section-copy { color: #c8c1dc !important; }
+
+            .stApp p,
+            .stApp label,
+            .stApp [data-testid="stMarkdownContainer"],
+            .stApp [data-testid="stFileUploaderDropzoneInstructions"],
+            .stApp [data-testid="stCaptionContainer"] {
+                color: #f3efff !important;
+            }
+            .stApp small,
+            .stApp [data-testid="stCaptionContainer"] p { color: #c8c1dc !important; }
+
+            [data-testid="stFileUploaderDropzoneInstructions"],
+            [data-testid="stFileUploaderDropzoneInstructions"] *,
+            [data-testid="stFileUploaderFileData"],
+            [data-testid="stFileUploaderFileData"] * {
+                color: #e6e0f6 !important;
+                -webkit-text-fill-color: #e6e0f6 !important;
+            }
+            [data-testid="stFileUploaderDropzone"] {
+                border-color: rgba(155,130,255,.38) !important;
+                background: rgba(34,36,64,.92) !important;
+            }
+            [data-testid="stFileUploaderDropzone"] svg { color: #a992ff !important; }
+            [data-testid="stFileUploaderDropzone"]:hover {
+                border-color: rgba(180,160,255,.72) !important;
+                background: #2b2d50 !important;
+            }
+            [data-testid="stFileUploaderDropzone"] button {
+                border-color: rgba(170,153,255,.32) !important;
+                background: #343657 !important;
+                color: #f6f2ff !important;
+                -webkit-text-fill-color: #f6f2ff !important;
+                box-shadow: 0 8px 18px rgba(0,0,0,.18) !important;
+            }
+            [data-testid="stFileUploaderDropzone"] button p {
+                color: #f6f2ff !important;
+                -webkit-text-fill-color: #f6f2ff !important;
+            }
+            [data-testid="stFileUploaderFileName"],
+            [data-testid="stFileUploaderFileName"] *,
+            [data-testid="stFileUploaderFileData"] > div:first-child,
+            [data-testid="stFileUploaderFileData"] > div:first-child * { color: #bdb6d2 !important; }
+
+            [data-baseweb="select"] > div {
+                border-color: rgba(155,130,255,.34) !important;
+                background: #252744 !important;
+                color: #f7f4ff !important;
+                box-shadow: 0 6px 18px rgba(0,0,0,.18) !important;
+            }
+            [data-baseweb="select"] > div:focus-within {
+                border-color: rgba(180,160,255,.78) !important;
+                box-shadow: 0 0 0 4px rgba(155,130,255,.14) !important;
+            }
+            [data-baseweb="select"] *,
+            [data-baseweb="select"] input,
+            [data-baseweb="select"] svg {
+                color: #f7f4ff !important;
+                -webkit-text-fill-color: #f7f4ff !important;
+            }
+            [data-baseweb="popover"],
+            [data-baseweb="popover"] > div,
+            [data-baseweb="popover"] [data-baseweb="menu"],
+            [data-baseweb="popover"] [role="listbox"],
+            [data-baseweb="menu"],
+            [role="listbox"] {
+                background: #20223d !important;
+                background-color: #20223d !important;
+                color: #f7f4ff !important;
+                -webkit-text-fill-color: #f7f4ff !important;
+            }
+            [data-baseweb="popover"] [role="listbox"],
+            [role="listbox"] {
+                border-color: rgba(170,153,255,.26) !important;
+                box-shadow: 0 18px 42px rgba(0,0,0,.42) !important;
+            }
+            [data-baseweb="popover"] [role="option"],
+            [role="listbox"] [role="option"],
+            [data-baseweb="popover"] [role="option"] *,
+            [role="listbox"] [role="option"] * {
+                background: #20223d !important;
+                color: #f7f4ff !important;
+                -webkit-text-fill-color: #f7f4ff !important;
+            }
+            [data-baseweb="popover"] [role="option"]:hover,
+            [role="listbox"] [role="option"]:hover { background: #31345a !important; }
+            [data-baseweb="popover"] [role="option"][aria-selected="true"],
+            [role="listbox"] [role="option"][aria-selected="true"] { background: #3a3563 !important; }
+
+            .stDownloadButton > button {
+                background: #2a2d4b !important;
+                border-color: rgba(170,153,255,.30) !important;
+                color: #f0ebff !important;
+                -webkit-text-fill-color: #f0ebff !important;
+                box-shadow: 0 7px 18px rgba(0,0,0,.18) !important;
+            }
+            .stDownloadButton > button p,
+            .stDownloadButton > button span,
+            .stDownloadButton > button div {
+                color: #f0ebff !important;
+                -webkit-text-fill-color: #f0ebff !important;
+            }
+            .stDownloadButton > button svg { color: #b8a7ff !important; }
+            .stDownloadButton > button:hover {
+                background: #35385d !important;
+                border-color: rgba(180,160,255,.54) !important;
+                color: #ffffff !important;
+            }
+            .stButton > button[kind="primary"],
+            .st-key-retry_narration button:not(:disabled) {
+                background: linear-gradient(135deg, #5f9ff9 0%, #886cf2 52%, #c66bdb 100%) !important;
+                box-shadow: 0 12px 30px rgba(115,83,230,.34) !important;
+            }
+            .st-key-create_story button:disabled,
+            .st-key-create_story button:disabled:hover,
+            .st-key-retry_narration button:disabled,
+            .st-key-retry_narration button:disabled:hover {
+                background: #2a2c3f !important;
+                color: #8f8aa3 !important;
+                border-color: #3c3e53 !important;
+            }
+            .st-key-create_story button:disabled p,
+            .st-key-retry_narration button:disabled p { color: #8f8aa3 !important; }
+
+            .st-key-theme_toggle .stButton > button {
+                background: #252744 !important;
+                border-color: rgba(170,153,255,.28) !important;
+                color: #eeeaff !important;
+                -webkit-text-fill-color: #eeeaff !important;
+                box-shadow: 0 7px 18px rgba(0,0,0,.18) !important;
+            }
+            .st-key-theme_toggle .stButton > button p {
+                color: #eeeaff !important;
+                -webkit-text-fill-color: #eeeaff !important;
+            }
+            .st-key-theme_toggle .stButton > button:hover {
+                background: #31345a !important;
+                border-color: rgba(180,160,255,.50) !important;
+            }
+
+            .preview-empty {
+                border-color: rgba(120,190,255,.32) !important;
+                background:
+                    radial-gradient(circle at 25% 20%, rgba(255,216,111,.10), transparent 30%),
+                    radial-gradient(circle at 75% 80%, rgba(255,134,184,.08), transparent 34%),
+                    rgba(28,31,54,.76) !important;
+            }
+            .preview-placeholder-icon {
+                background: linear-gradient(145deg, #34375b, #262943) !important;
+                border: 1px solid rgba(170,153,255,.18) !important;
+                box-shadow: 0 14px 30px rgba(0,0,0,.26) !important;
+            }
+            .preview-empty strong { color: #faf8ff !important; }
+            .preview-empty p { color: #c8c1dc !important; }
+            .preview-image-box img {
+                border-color: rgba(233,226,255,.92) !important;
+                background: #1a1d35 !important;
+                box-shadow: 0 20px 46px rgba(0,0,0,.36) !important;
+            }
+
+            [data-testid="stProgress"] > div > div > div > div {
+                background: linear-gradient(90deg, #78beff, #9b82ff, #ff86b8) !important;
+            }
+            [data-testid="stProgress"] > div > div > div { background: #272a43 !important; }
+            [data-testid="stProgress"] p { color: #d3cce5 !important; }
+            [data-testid="stAudio"] { box-shadow: 0 7px 20px rgba(0,0,0,.22) !important; }
+
+            .story-shell {
+                border-color: rgba(103,216,184,.24) !important;
+                background: rgba(31,44,51,.84) !important;
+                box-shadow: inset 0 1px 0 rgba(255,255,255,.035) !important;
+            }
+            .story-text { color: #f1fbf8 !important; }
+            .word-chip {
+                background: rgba(103,216,184,.12) !important;
+                border-color: rgba(103,216,184,.20) !important;
+                color: #a9ebd8 !important;
+            }
+            .st-key-story_panel [data-testid="stSpinner"] p { color: #d3cce5 !important; }
+
+            .empty-state {
+                border-color: rgba(170,153,255,.16) !important;
+                background:
+                    radial-gradient(circle at 28% 20%, rgba(255,216,111,.09), transparent 32%),
+                    radial-gradient(circle at 72% 72%, rgba(120,190,255,.08), transparent 35%),
+                    rgba(28,31,54,.72) !important;
+            }
+            .empty-orb {
+                background: linear-gradient(145deg, #36395e, #282a47) !important;
+                border: 1px solid rgba(170,153,255,.18) !important;
+                color: #b9a7ff !important;
+                box-shadow: 0 14px 32px rgba(0,0,0,.26) !important;
+            }
+            .empty-state strong { color: #faf8ff !important; }
+            .empty-state p { color: #c8c1dc !important; }
+
+            details,
+            [data-testid="stExpander"] details {
+                border-color: rgba(170,153,255,.20) !important;
+                background: #1c1f38 !important;
+                color: #f3efff !important;
+            }
+            details > summary,
+            [data-testid="stExpander"] summary {
+                background: #242742 !important;
+                color: #eee9ff !important;
+                -webkit-text-fill-color: #eee9ff !important;
+            }
+            details > summary *,
+            [data-testid="stExpander"] summary * {
+                color: #eee9ff !important;
+                -webkit-text-fill-color: #eee9ff !important;
+            }
+            details > summary svg,
+            [data-testid="stExpander"] summary svg { color: #b9a8ff !important; }
+            [data-testid="stExpanderDetails"] {
+                background: #1a1d34 !important;
+                color: #f3efff !important;
+            }
+            [data-testid="stExpanderDetails"] p,
+            [data-testid="stExpanderDetails"] span,
+            [data-testid="stExpanderDetails"] div {
+                color: #d7d0e8 !important;
+                -webkit-text-fill-color: #d7d0e8 !important;
+            }
+            .st-key-description_panel [data-testid="stExpanderDetails"] p { color: #c9c2db !important; }
+
+            [data-testid="stAlert"] {
+                background: #242742 !important;
+                border-color: rgba(170,153,255,.18) !important;
+                color: #f7f4ff !important;
+            }
+            [data-testid="stAlert"] * {
+                color: inherit !important;
+                -webkit-text-fill-color: currentColor !important;
+            }
+            .footer-note { color: #a9a1be !important; }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 def image_to_data_uri(image: Image.Image) -> str:
@@ -903,7 +1485,7 @@ def render_story(result: dict):
     if story:
         st.markdown(
             f'<div class="story-shell"><div class="story-text">{html.escape(story)}</div>'
-            f'<span class="word-chip">{word_count(story)} words</span></div>',
+            f'<span class="word-chip">📚 {word_count(story)} words</span></div>',
             unsafe_allow_html=True,
         )
 
@@ -912,30 +1494,35 @@ def render_narration(result: dict, selected_voice: str, refresh: bool):
     """Refresh only the audio region; commit new audio/voice together on success."""
     if not result.get("story"):
         return
-    st.markdown("### Listen to your story")
+    st.markdown("### 🎧 Listen to Your Story")
     if refresh:
-        progress = st.progress(0, text="Creating your chosen voice…")
+        progress = st.progress(0, text="🎙️ Getting your new storyteller ready…")
         try:
-            with st.spinner("Giving your story a new voice…"):
+            with st.spinner("✨ Adding a little voice magic…"):
                 with inference_lock():
                     audio = run_stage(generate_audio, result["story"], selected_voice)
             result.update(audio=audio, voice=selected_voice)
             st.session_state["result"] = result
-            progress.progress(100, text="Your narration is ready.")
+            st.session_state["autoplay_audio"] = True
+            progress.progress(100, text="🎉 Your new storyteller is ready!")
             # Reflect the newly active voice in the button's disabled state.
             st.rerun()
         except Exception as exc:
             LOGGER.exception("Narration retry failed")
             progress.empty()
-            st.error("We couldn't create that narration. Your story and any previous audio are saved.")
-            with st.expander("Technical details"):
+            st.error("Oops! That storyteller needs another try. Your story is still safe below.")
+            with st.expander("🔧 Technical details (for grown-ups)"):
                 st.text(str(exc))
     if result.get("audio"):
         narrator = next(name for name, voice in VOICE_OPTIONS.items() if voice == result["voice"])
-        st.caption(f"Narrated by {narrator}")
-        st.audio(result["audio"], format="audio/wav")
+        st.caption(f"🎙️ Storyteller: {narrator}")
+        st.audio(
+            result["audio"],
+            format="audio/wav",
+            autoplay=st.session_state.pop("autoplay_audio", False),
+        )
     else:
-        st.caption("Choose a storyteller above, then use the button to create narration in that voice.")
+        st.caption("Pick a storyteller above, then press the voice button to hear the story again.")
 
 
 
@@ -951,30 +1538,47 @@ def unlock_narration_action():
     st.session_state["narration_refresh_requested"] = False
 
 
+def toggle_theme():
+    """Switch between the light default and the optional dark color palette."""
+    current = st.session_state.get("ui_theme", "light")
+    st.session_state["ui_theme"] = "dark" if current == "light" else "light"
+
+
 def main():
     """Build the Streamlit interface and orchestrate the three inference stages."""
     st.set_page_config(
         page_title="Magic Story Maker",
-        page_icon="✦",
+        page_icon="🪄",
         layout="wide",
         initial_sidebar_state="collapsed",
     )
-    inject_apple_style()
+    theme = st.session_state.setdefault("ui_theme", "light")
+    inject_kid_friendly_style(theme)
 
-    st.markdown(
-        """
-        <section class="hero">
-            <h1>One picture.<br><span class="hero-gradient">A whole new story.</span></h1>
-            <p>Upload an image and watch it become a warm adventure you can read and hear.</p>
-            <div class="flow-pills">
-                <span>1 · Upload</span>
-                <span>2 · Imagine</span>
-                <span>3 · Listen</span>
-            </div>
-        </section>
-        """,
-        unsafe_allow_html=True,
-    )
+    # Keep the compact theme control beside the star in the hero.
+    # The switch changes only presentation; uploaded images and generated content are preserved.
+    with st.container(key="hero_wrap"):
+        st.markdown(
+            """
+            <section class="hero">
+                <div class="magic-badge">🪄 Magic Story Maker</div>
+                <h1>Turn a picture into<br><span class="hero-gradient">your own magical story!</span></h1>
+                <p>Pick a picture, choose your storyteller, and make a story you can read and hear.</p>
+                <div class="flow-pills">
+                    <span>🖼️ 1 · Pick a picture</span>
+                    <span>🎙️ 2 · Pick a voice</span>
+                    <span>✨ 3 · Make the magic</span>
+                </div>
+            </section>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.button(
+            "🌙 Dark" if theme == "light" else "☀️ Light",
+            key="theme_toggle",
+            help="Switch the app colors without changing your picture or story.",
+            on_click=toggle_theme,
+        )
 
     # The decoded PIL image exists only for the current Streamlit rerun.
     image = None
@@ -986,14 +1590,14 @@ def main():
         with upload_col:
             st.markdown(
                 """
-                <div class="section-kicker">Step 1</div>
-                <div class="section-title">Upload Your Picture</div>
-                <div class="section-copy">Choose a JPG or PNG. Clear, colorful images work best.</div>
+                <div class="section-kicker">🖼️ Step 1</div>
+                <div class="section-title">Pick a Picture</div>
+                <div class="section-copy">Choose a favorite photo or drawing. Bright, clear pictures work best!</div>
                 """,
                 unsafe_allow_html=True,
             )
             uploaded = st.file_uploader(
-                "Upload a picture", type=ALLOWED_IMAGE_TYPES, label_visibility="collapsed"
+                "Pick a picture", type=ALLOWED_IMAGE_TYPES, label_visibility="collapsed"
             )
             if uploaded is not None and len(uploaded.getvalue()) > MAX_UPLOAD_MB * 1024 * 1024:
                 st.error(f"Please upload an image smaller than {MAX_UPLOAD_MB} MB.")
@@ -1002,16 +1606,16 @@ def main():
         with voice_col:
             st.markdown(
                 """
-                <div class="section-kicker">Step 2</div>
-                <div class="section-title">Choose Your Storyteller</div>
-                <div class="section-copy">Pick the voice that will narrate your finished story.</div>
+                <div class="section-kicker">🎙️ Step 2</div>
+                <div class="section-title">Pick Your Storyteller</div>
+                <div class="section-copy">Choose who will read your magical story out loud.</div>
                 """,
                 unsafe_allow_html=True,
             )
             voice_names = list(VOICE_OPTIONS)
             default_voice_index = list(VOICE_OPTIONS.values()).index(DEFAULT_VOICE)
             selected_name = st.selectbox(
-                "Choose Your Storyteller",
+                "Pick Your Storyteller",
                 voice_names,
                 index=default_voice_index,
                 label_visibility="collapsed",
@@ -1030,6 +1634,7 @@ def main():
             st.session_state.pop("result", None)
             st.session_state.pop("narration_button_locked", None)
             st.session_state.pop("narration_refresh_requested", None)
+            st.session_state.pop("autoplay_audio", None)
 
         if uploaded is not None:
             try:
@@ -1041,14 +1646,14 @@ def main():
 
         # Keep the primary action above the preview area.
         create_clicked = st.button(
-            "✨ Create My Story",
+            "✨ Make My Story!",
             type="primary",
             disabled=image is None,
             use_container_width=False,
             key="create_story",
         )
         if image is None:
-            st.caption("Upload a picture to begin.")
+            st.caption("👆 Pick a picture to start the magic!")
 
     # Preview and story start on the same horizontal line.
     preview_col, story_col = st.columns(2, gap="large")
@@ -1065,7 +1670,11 @@ def main():
                 )
             else:
                 st.markdown(
-                    '<div class="preview-empty" aria-label="Image preview area"></div>',
+                    '<div class="preview-empty" aria-label="Image preview area">'
+                    '<div class="preview-placeholder-icon">🖼️</div>'
+                    '<strong>Your picture will appear here</strong>'
+                    '<p>Pick a photo or drawing above to start your story.</p>'
+                    '</div>',
                     unsafe_allow_html=True,
                 )
 
@@ -1076,9 +1685,9 @@ def main():
         with st.container(border=True, key="story_panel"):
             st.markdown(
                 """
-                <div class="section-kicker">Your creation</div>
-                <div class="section-title">Your Story</div>
-                <div class="section-copy">Your picture becomes a short story with natural narration.</div>
+                <div class="section-kicker">✨ Step 3</div>
+                <div class="section-title">Your Magical Story</div>
+                <div class="section-copy">Read along, then listen as your storyteller brings it to life!</div>
                 """,
                 unsafe_allow_html=True,
             )
@@ -1089,7 +1698,7 @@ def main():
                 st.session_state.pop("result", None)
                 st.session_state["narration_button_locked"] = False
                 st.session_state["narration_refresh_requested"] = False
-                progress = st.progress(0, text="Looking closely at your picture…")
+                progress = st.progress(0, text="🔎 Looking for fun details in your picture…")
                 preview = st.empty()
                 try:
                     # Only one model performs inference at a time on the shared CPU host.
@@ -1097,7 +1706,7 @@ def main():
                         description = run_stage(generate_image_description, image)
                         result = {"description": description, "voice": selected_voice}
                         st.session_state["result"] = result
-                        progress.progress(33, text="Turning details into a story…")
+                        progress.progress(33, text="✏️ Writing your magical story…")
                         story = run_stage(generate_story, description)
                         result["story"] = story
                         preview.markdown(
@@ -1106,15 +1715,16 @@ def main():
                             f'</div>',
                             unsafe_allow_html=True,
                         )
-                        progress.progress(66, text="Giving the story a voice…")
-                        with st.spinner("Making your story audible…"):
+                        progress.progress(66, text="🎙️ Warming up your storyteller…")
+                        with st.spinner("✨ Adding the finishing magic…"):
                             result["audio"] = run_stage(generate_audio, story, selected_voice)
-                        progress.progress(100, text="Your story is ready.")
+                        st.session_state["autoplay_audio"] = True
+                        progress.progress(100, text="🎉 Hooray! Your story is ready!")
                 except Exception as exc:
                     LOGGER.exception("Story creation failed")
                     progress.empty()
-                    st.error("We couldn't finish all the steps. Any completed text is saved below.")
-                    with st.expander("Technical details"):
+                    st.error("Oops! The magic got a little tangled. Anything we finished is still safe below.")
+                    with st.expander("🔧 Technical details (for grown-ups)"):
                         st.text(str(exc))
                 finally:
                     preview.empty()
@@ -1127,13 +1737,15 @@ def main():
                     # Lock immediately after a click to prevent duplicate narration requests.
                     # Changing the storyteller unlocks the action again.
                     voice_action_slot.button(
-                        "🎙️ Want another storyteller? Pick a voice and hit me!",
+                        ("🎙️ Pick a Different Storyteller"
+                         if selected_voice == result.get("voice")
+                         else "🎙️ Hear It With This Storyteller"),
                         key="retry_narration",
                         disabled=(
                             selected_voice == result.get("voice")
                             or st.session_state.get("narration_button_locked", False)
                         ),
-                        help="Choose a storyteller above, then create fresh narration without changing the story.",
+                        help="Pick a different storyteller above, then press this button to hear the same story in the new voice.",
                         on_click=request_narration_refresh,
                     )
                     # The callback runs before this rerun, so the button is already disabled
@@ -1148,36 +1760,38 @@ def main():
                 if result.get("story") and result.get("description"):
                     with description_slot.container():
                         with st.container(key="description_panel"):
-                            with st.expander("Detailed image description"):
+                            with st.expander("🧠 Behind the magic (for grown-ups)"):
+                                st.caption("Picture details noticed before the story was written:")
                                 st.write(result["description"])
 
                 if result.get("story"):
-                    story_download_col, audio_download_col = st.columns(2, gap="small")
-                    with story_download_col:
-                        st.download_button(
-                            "Download story", result["story"], "my-story.txt", "text/plain",
-                            key="download_story", use_container_width=True,
-                        )
-                    with audio_download_col:
-                        st.download_button(
-                            "Download narration", result.get("audio", b""), "my-story.wav", "audio/wav",
-                            key="download_narration", disabled=not result.get("audio"),
-                            use_container_width=True,
-                        )
+                    with st.expander("💾 Save the story (for grown-ups)"):
+                        story_download_col, audio_download_col = st.columns(2, gap="small")
+                        with story_download_col:
+                            st.download_button(
+                                "📖 Save story", result["story"], "my-story.txt", "text/plain",
+                                key="download_story", use_container_width=True,
+                            )
+                        with audio_download_col:
+                            st.download_button(
+                                "🎧 Save narration", result.get("audio", b""), "my-story.wav", "audio/wav",
+                                key="download_narration", disabled=not result.get("audio"),
+                                use_container_width=True,
+                            )
             elif not create_clicked:
                 st.markdown(
                     """
                     <div class="empty-state">
-                        <div class="empty-orb">✦</div>
-                        <strong>Your story will appear here.</strong>
-                        <p>Upload a picture, choose a storyteller, then create your story.</p>
+                        <div class="empty-orb">📖</div>
+                        <strong>Your story is waiting!</strong>
+                        <p>Pick a picture, choose a storyteller, then press “Make My Story!”</p>
                     </div>
                     """,
                     unsafe_allow_html=True,
                 )
 
     st.markdown(
-        '<div class="footer-note">P025 -  ISOM5240</div>',
+        '<div class="footer-note">Made with ✨ for little storytellers · P025 · ISOM5240</div>',
         unsafe_allow_html=True,
     )
 
