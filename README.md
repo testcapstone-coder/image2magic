@@ -1,4 +1,4 @@
-# Magic Story Maker
+# Magic Story Maker v1.0
 
 **Magic Story Maker** is a Streamlit storytelling application developed for the ISOM5240 individual assignment. A user uploads an image, the application analyzes what is visible, turns those details into a short child-friendly story, and generates spoken narration.
 
