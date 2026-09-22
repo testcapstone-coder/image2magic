@@ -1,7 +1,14 @@
 # Magic Story Maker
-# Copyright (c) 2026 - P025 - ISOM5240
+# Copyright (c) 2026 - P025 - Naoufel - ISOM5240
 # Licensed under the GNU General Public License v3.0.
-"""ISOM5240: Florence image description → SmolLM2 story → Kokoro narration."""
+"""Magic Story Maker: image understanding -> story generation -> speech narration.
+
+The application is intentionally split into independent inference stages so each model can
+be released before the next CPU-heavy stage starts. This keeps memory usage suitable for
+small Streamlit Cloud instances while preserving a simple user experience.
+"""
+
+# Python standard library
 import base64
 import gc
 import ctypes
@@ -13,6 +20,7 @@ import logging
 import re
 from threading import RLock
 
+# Third-party libraries
 import numpy as np
 import soundfile as sf
 import spacy
@@ -22,12 +30,14 @@ from PIL import Image, ImageOps
 from kokoro import KModel, KPipeline
 from transformers import AutoModelForCausalLM, AutoProcessor, pipeline
 
-# Model configuration
+# -----------------------------------------------------------------------------
+# Model and generation configuration
+# -----------------------------------------------------------------------------
 CAPTION_MODEL = "microsoft/Florence-2-base"  # Image -> detailed image description
 STORY_MODEL = "HuggingFaceTB/SmolLM2-360M-Instruct"  # Image description -> children's story
 AUDIO_MODEL = "hexgrad/Kokoro-82M"  # Generated story -> spoken narration
 
-# Application configuration
+# Story, narration, and upload constraints shared by validation and the UI.
 MIN_STORY_WORDS = 50
 MAX_STORY_WORDS = 100
 TARGET_STORY_WORDS = 65
@@ -38,6 +48,7 @@ DEFAULT_VOICE = "am_michael"
 ALLOWED_IMAGE_TYPES = ["jpg", "jpeg", "png"]
 MAX_UPLOAD_MB = 20
 
+# Display label -> Kokoro voice identifier.
 VOICE_OPTIONS = {
     "🧚 Bella — Warm American": "af_bella",
     "🎙️ Nicole — American Female": "af_nicole",
@@ -46,7 +57,11 @@ VOICE_OPTIONS = {
     "🧙 Michael — American Male": "am_michael",
     "🪄 Puck — American Male": "am_puck",
 }
+
 LOGGER = logging.getLogger(__name__)
+
+# The system prompt keeps generated stories grounded in the uploaded image and
+# appropriate for the assignment's 3-10 year-old audience.
 SYSTEM_PROMPT = (
     "Write a warm, playful story for children aged 3–10 in simple English. "
     f"Use five short sentences, about 12–16 words each, totaling {MIN_STORY_WORDS}–{MAX_STORY_WORDS} words. "
@@ -139,11 +154,13 @@ def word_count(text: str) -> int:
 
 
 def clean_story(text: str) -> str:
+    """Remove common model preambles and normalize whitespace before validation."""
     text = re.sub(r"^\s*(?:story|here(?:'s| is) (?:your|the) story)\s*:\s*", "", text, flags=re.I)
     return " ".join(text.strip().split())
 
 
 def story_issue(story: str) -> str:
+    """Return a targeted revision instruction, or an empty string for a valid story."""
     count = word_count(story)
     if not MIN_STORY_WORDS <= count <= MAX_STORY_WORDS:
         return (f"The draft has {count} words. Rewrite it as five short sentences, "
@@ -231,6 +248,7 @@ def load_kokoro_model():
 
 
 def load_tts_model(lang_code: str):
+    """Build the Kokoro text-processing pipeline for an American or British voice."""
     # Kokoro uses spaCy's small English pipeline to process narration text.
     text_processing_model = "en_core_web_sm"
 
@@ -250,9 +268,11 @@ def generate_audio(story: str, voice: str = DEFAULT_VOICE) -> bytes:
         raise ValueError(
             f"Narration requires a validated {MIN_STORY_WORDS}–{MAX_STORY_WORDS} word story."
         )
+    # Kokoro voice IDs start with "a" (American) or "b" (British).
     tts = load_tts_model("b" if voice.startswith("b") else "a")
     chunks = []
     with torch.inference_mode():
+        # Kokoro may stream several audio fragments; collect them into one WAV file.
         for _, _, audio in tts(story, voice=voice, speed=NARRATION_SPEED):
             if audio is not None:
                 if hasattr(audio, "detach"):
@@ -268,7 +288,7 @@ def generate_audio(story: str, voice: str = DEFAULT_VOICE) -> bytes:
 
 
 def inject_apple_style():
-    """Apply a dark, Apple-inspired visual system without extra dependencies."""
+    """Inject the complete responsive Streamlit theme without external CSS files."""
     st.markdown(
         """
         <style>
@@ -315,12 +335,12 @@ def inject_apple_style():
         .hero {
             text-align: center;
             max-width: 920px;
-            margin: 1.1rem auto 2.4rem;
+            margin: .5rem auto 1.25rem;
             animation: rise .7s cubic-bezier(.2,.75,.2,1) both;
         }
         .hero h1 {
             margin: 0 0 .9rem;
-            font-size: clamp(2.2rem, 5.05vw, 4.35rem);
+            font-size: clamp(2.4rem, 5.2vw, 4.5rem);
             line-height: .95;
             letter-spacing: -.07em;
             font-weight: 720;
@@ -341,7 +361,7 @@ def inject_apple_style():
             letter-spacing: -.025em;
         }
         .flow-pills {
-            margin-top: 1.4rem;
+            margin-top: .8rem;
             display: flex;
             justify-content: center;
             flex-wrap: wrap;
@@ -385,8 +405,11 @@ def inject_apple_style():
         }
 
         /* Balance Preview and Your Story as one clean product-style row. */
+        .st-key-story_panel,
         .st-key-story_panel > div[data-testid="stVerticalBlockBorderWrapper"] {
-            background: linear-gradient(180deg, rgba(18,18,22,.98), rgba(12,12,16,.98)) !important;
+            background: linear-gradient(145deg, #123d38, #102a2b) !important;
+            border: 1px solid rgba(94,234,212,.38) !important;
+            border-radius: 24px;
             min-height: 435px;
         }
         .st-key-story_panel > div[data-testid="stVerticalBlockBorderWrapper"] > div {
@@ -804,7 +827,7 @@ def inject_apple_style():
 
         @media (max-width: 800px) {
             .block-container { padding-left: 1rem; padding-right: 1rem; }
-            .hero { margin: .7rem auto 1.8rem; }
+            .hero { margin: .4rem auto 1.1rem; }
             .hero h1 { letter-spacing: -.055em; }
             div[data-testid="stVerticalBlockBorderWrapper"] { border-radius: 24px !important; }
             .st-key-story_panel > div[data-testid="stVerticalBlockBorderWrapper"],
@@ -825,6 +848,41 @@ def inject_apple_style():
                 scroll-behavior: auto !important;
             }
         }
+        /* Keep disabled actions unmistakably inactive, including on hover. */
+        .st-key-create_story button:disabled,
+        .st-key-create_story button:disabled:hover {
+            background: #303039 !important;
+            color: #b7b7bf !important;
+            border: 1px solid #494952 !important;
+            box-shadow: none !important;
+            transform: none !important;
+            filter: none !important;
+            cursor: not-allowed !important;
+            opacity: 1 !important;
+        }
+        .st-key-create_story button:disabled p { color: #b7b7bf !important; }
+        .st-key-story_panel .story-text { color: #e4fff7 !important; }
+        .st-key-retry_narration button:not(:disabled) {
+            background: linear-gradient(135deg, #6e5cff 0%, #9b6cff 100%) !important;
+            border: 0 !important;
+            color: #ffffff !important;
+            box-shadow: 0 10px 30px rgba(110,92,255,.27) !important;
+        }
+        .st-key-retry_narration button:not(:disabled):hover {
+            filter: brightness(1.05) !important;
+            box-shadow: 0 14px 36px rgba(110,92,255,.30) !important;
+        }
+        .st-key-retry_narration button:disabled,
+        .st-key-retry_narration button:disabled:hover {
+            background: #303039 !important;
+            border: 1px solid #494952 !important;
+            color: #b7b7bf !important;
+            box-shadow: none !important;
+            transform: none !important;
+            filter: none !important;
+            cursor: not-allowed !important;
+        }
+        .st-key-retry_narration button:disabled p { color: #b7b7bf !important; }
         </style>
         """,
         unsafe_allow_html=True,
@@ -839,11 +897,9 @@ def image_to_data_uri(image: Image.Image) -> str:
     return f"data:image/png;base64,{encoded}"
 
 
-def render_result(result: dict):
-    """Display the generated story, narration, and download actions."""
+def render_story(result: dict):
+    """Render saved text before any potentially slow audio work."""
     story = result.get("story")
-    audio = result.get("audio")
-
     if story:
         st.markdown(
             f'<div class="story-shell"><div class="story-text">{html.escape(story)}</div>'
@@ -851,44 +907,52 @@ def render_result(result: dict):
             unsafe_allow_html=True,
         )
 
-    if audio:
-        st.markdown("### Listen to your story")
+
+def render_narration(result: dict, selected_voice: str, refresh: bool):
+    """Refresh only the audio region; commit new audio/voice together on success."""
+    if not result.get("story"):
+        return
+    st.markdown("### Listen to your story")
+    if refresh:
+        progress = st.progress(0, text="Creating your chosen voice…")
+        try:
+            with st.spinner("Giving your story a new voice…"):
+                with inference_lock():
+                    audio = run_stage(generate_audio, result["story"], selected_voice)
+            result.update(audio=audio, voice=selected_voice)
+            st.session_state["result"] = result
+            progress.progress(100, text="Your narration is ready.")
+            # Reflect the newly active voice in the button's disabled state.
+            st.rerun()
+        except Exception as exc:
+            LOGGER.exception("Narration retry failed")
+            progress.empty()
+            st.error("We couldn't create that narration. Your story and any previous audio are saved.")
+            with st.expander("Technical details"):
+                st.text(str(exc))
+    if result.get("audio"):
         narrator = next(name for name, voice in VOICE_OPTIONS.items() if voice == result["voice"])
         st.caption(f"Narrated by {narrator}")
-        st.audio(audio, format="audio/wav")
+        st.audio(result["audio"], format="audio/wav")
+    else:
+        st.caption("Choose a storyteller above, then use the button to create narration in that voice.")
 
-    if story:
-        if audio:
-            story_download_col, audio_download_col = st.columns(2, gap="small")
-            with story_download_col:
-                st.download_button(
-                    "Download story",
-                    story,
-                    "my-story.txt",
-                    "text/plain",
-                    key="download_story",
-                    use_container_width=True,
-                )
-            with audio_download_col:
-                st.download_button(
-                    "Download narration",
-                    audio,
-                    "my-story.wav",
-                    "audio/wav",
-                    key="download_narration",
-                    use_container_width=True,
-                )
-        else:
-            st.download_button(
-                "Download story",
-                story,
-                "my-story.txt",
-                "text/plain",
-                key="download_story",
-            )
+
+
+def request_narration_refresh():
+    """Lock the narration action immediately and queue one audio refresh."""
+    st.session_state["narration_button_locked"] = True
+    st.session_state["narration_refresh_requested"] = True
+
+
+def unlock_narration_action():
+    """Re-enable narration generation when the user chooses a different voice."""
+    st.session_state["narration_button_locked"] = False
+    st.session_state["narration_refresh_requested"] = False
 
 
 def main():
+    """Build the Streamlit interface and orchestrate the three inference stages."""
     st.set_page_config(
         page_title="Magic Story Maker",
         page_icon="✦",
@@ -901,7 +965,7 @@ def main():
         """
         <section class="hero">
             <h1>One picture.<br><span class="hero-gradient">A whole new story.</span></h1>
-            <p>Upload an image and watch it become a warm dventure you can read and hear.</p>
+            <p>Upload an image and watch it become a warm adventure you can read and hear.</p>
             <div class="flow-pills">
                 <span>1 · Upload</span>
                 <span>2 · Imagine</span>
@@ -912,9 +976,10 @@ def main():
         unsafe_allow_html=True,
     )
 
+    # The decoded PIL image exists only for the current Streamlit rerun.
     image = None
 
-    # Upload and storyteller now sit side by side inside the same lavender card.
+    # Upload and storyteller controls share one setup card.
     with st.container(border=True, key="setup_panel"):
         upload_col, voice_col = st.columns(2, gap="large")
 
@@ -950,16 +1015,25 @@ def main():
                 voice_names,
                 index=default_voice_index,
                 label_visibility="collapsed",
+                key="storyteller_select",
+                on_change=unlock_narration_action,
             )
             selected_voice = VOICE_OPTIONS[selected_name]
+            # Filled later, after checking the current image and saved story.
+            voice_action_slot = st.empty()
 
+        # Hash the raw upload so changing the picture invalidates the previous result,
+        # while ordinary Streamlit reruns keep the generated story and audio available.
         image_id = hashlib.sha256(uploaded.getvalue()).hexdigest() if uploaded else None
         if st.session_state.get("image_id") != image_id:
             st.session_state["image_id"] = image_id
             st.session_state.pop("result", None)
+            st.session_state.pop("narration_button_locked", None)
+            st.session_state.pop("narration_refresh_requested", None)
 
         if uploaded is not None:
             try:
+                # Correct phone/camera orientation before converting to a stable RGB image.
                 with Image.open(io.BytesIO(uploaded.getvalue())) as original:
                     image = ImageOps.exif_transpose(original).convert("RGB")
             except (OSError, ValueError, Image.DecompressionBombError):
@@ -973,6 +1047,8 @@ def main():
             use_container_width=False,
             key="create_story",
         )
+        if image is None:
+            st.caption("Upload a picture to begin.")
 
     # Preview and story start on the same horizontal line.
     preview_col, story_col = st.columns(2, gap="large")
@@ -1008,10 +1084,15 @@ def main():
             )
 
             if create_clicked and image is not None:
+                # A new run replaces the previous result progressively: description -> story -> audio.
+                # Saving after each completed stage means useful text survives a later failure.
                 st.session_state.pop("result", None)
+                st.session_state["narration_button_locked"] = False
+                st.session_state["narration_refresh_requested"] = False
                 progress = st.progress(0, text="Looking closely at your picture…")
                 preview = st.empty()
                 try:
+                    # Only one model performs inference at a time on the shared CPU host.
                     with inference_lock():
                         description = run_stage(generate_image_description, image)
                         result = {"description": description, "voice": selected_voice}
@@ -1040,7 +1121,29 @@ def main():
 
             result = st.session_state.get("result")
             if result:
-                render_result(result)
+                render_story(result)
+                refresh_audio = False
+                if result.get("story"):
+                    # Lock immediately after a click to prevent duplicate narration requests.
+                    # Changing the storyteller unlocks the action again.
+                    voice_action_slot.button(
+                        "🎙️ Want another storyteller? Pick a voice and hit me!",
+                        key="retry_narration",
+                        disabled=(
+                            selected_voice == result.get("voice")
+                            or st.session_state.get("narration_button_locked", False)
+                        ),
+                        help="Choose a storyteller above, then create fresh narration without changing the story.",
+                        on_click=request_narration_refresh,
+                    )
+                    # The callback runs before this rerun, so the button is already disabled
+                    # while the queued audio generation is being processed.
+                    refresh_audio = st.session_state.pop(
+                        "narration_refresh_requested", False
+                    )
+                # Text is already on screen. Only this region performs audio work.
+                with st.container(key="narration_panel"):
+                    render_narration(result, selected_voice, refresh_audio)
 
                 if result.get("story") and result.get("description"):
                     with description_slot.container():
@@ -1048,8 +1151,19 @@ def main():
                             with st.expander("Detailed image description"):
                                 st.write(result["description"])
 
-                if selected_voice != result["voice"]:
-                    st.info("Click Create My Story to make a new story with your chosen storyteller.")
+                if result.get("story"):
+                    story_download_col, audio_download_col = st.columns(2, gap="small")
+                    with story_download_col:
+                        st.download_button(
+                            "Download story", result["story"], "my-story.txt", "text/plain",
+                            key="download_story", use_container_width=True,
+                        )
+                    with audio_download_col:
+                        st.download_button(
+                            "Download narration", result.get("audio", b""), "my-story.wav", "audio/wav",
+                            key="download_narration", disabled=not result.get("audio"),
+                            use_container_width=True,
+                        )
             elif not create_clicked:
                 st.markdown(
                     """
@@ -1067,5 +1181,6 @@ def main():
         unsafe_allow_html=True,
     )
 
+# Standard entry point for local execution and Streamlit Cloud.
 if __name__ == "__main__":
     main()
