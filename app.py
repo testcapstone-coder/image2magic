@@ -1791,7 +1791,7 @@ def main():
                 )
 
     st.markdown(
-        '<div class="footer-note">Made with ✨ for little storytellers · P025 · ISOM5240</div>',
+        '<div class="footer-note">Made with ✨ for little storytellers · P025 Naoufel · ISOM5240</div>',
         unsafe_allow_html=True,
     )
 
